@@ -494,10 +494,10 @@ def demo_controls():
     ])
     st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
     container_css = """
-    .st-key-wrap_scenario { background:#004D40; border-radius:0; border:none; padding:14px 12px; margin:0; }
-    .st-key-wrap_lift     { background:#311B92; border-radius:0; border:none; padding:14px 12px; margin:0; }
-    .st-key-wrap_reward   { background:#BF360C; border-radius:0; border:none; padding:14px 12px; margin:0; }
-    .st-key-wrap_enroll   { background:#1B5E20; border-radius:0; border:none; padding:14px 12px; margin:0; }
+    .st-key-wrap_scenario { background:#004D40; border-radius:0; border:none; padding:8px 10px; margin:0; }
+    .st-key-wrap_lift     { background:#311B92; border-radius:0; border:none; padding:8px 10px; margin:0; }
+    .st-key-wrap_reward   { background:#BF360C; border-radius:0; border:none; padding:8px 10px; margin:0; }
+    .st-key-wrap_enroll   { background:#1B5E20; border-radius:0; border:none; padding:8px 10px; margin:0; }
     """
     st.markdown(f"<style>{container_css}</style>", unsafe_allow_html=True)
     st.markdown("""
@@ -648,9 +648,7 @@ def main():
 
     # ---------------- Sidebar ----------------
     with st.sidebar:
-        st.markdown("## MyGarage inputs")
-        st.markdown(f"Scenario: **{st.session_state['preset']}**. Pick scenarios with the "
-                    "buttons on the main page; fine-tune any input below.")
+        st.markdown("**Inputs** — fine-tune below")
 
         with st.expander("CarMax baseline (FY2026)", expanded=False):
             num("Retail used units / year", "retail_units", 1000.0)
@@ -801,7 +799,7 @@ def main():
     .mg-hero {
         background: #0d3880;
         border-radius: 0;
-        padding: 18px 32px 14px 32px;
+        padding: 10px 24px 10px 24px;
         margin: 0 -1.5rem 0 -1.5rem;
         border-bottom: 3px solid #FFD520;
         display: flex;
@@ -873,7 +871,7 @@ def main():
         border-bottom: 2px solid rgba(255,213,32,0.35);
         border-left: none; border-right: none;
         border-radius: 0;
-        padding: 12px 8px;
+        padding: 7px 8px;
         display: flex;
         gap: 0;
         flex-wrap: nowrap;
@@ -908,7 +906,7 @@ def main():
     .kpi-item {
         flex: 1;
         text-align: center;
-        padding: 18px 10px 14px 10px;
+        padding: 10px 8px 8px 8px;
         border-left: 1px solid rgba(255,213,32,0.4);
     }
     .kpi-item:first-child { border-left: none; }
@@ -942,7 +940,7 @@ def main():
         border-bottom: 1px solid rgba(100,140,200,0.3);
         border-left: none; border-right: none;
         border-radius: 0;
-        padding: 12px 8px;
+        padding: 7px 8px;
         display: flex;
         gap: 0;
         flex-wrap: nowrap;
@@ -1133,9 +1131,9 @@ def main():
         with col:
             st.markdown(f"""
             <div style='background:{tile_bg};{top_border}text-align:center;
-                        padding:16px 8px 4px 8px;border-left:1px solid rgba(255,213,32,0.15);'>
-              <div style='font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;
-                          font-weight:700;color:#90b4e0;margin-bottom:6px;'>{label}</div>
+                        padding:8px 8px 2px 8px;border-left:1px solid rgba(255,213,32,0.15);'>
+              <div style='font-size:0.72rem;text-transform:uppercase;letter-spacing:1px;
+                          font-weight:700;color:#90b4e0;margin-bottom:4px;'>{label}</div>
               <div style='font-size:2.1rem;font-weight:900;line-height:1;color:{val_color};
                           font-family:"Inter","Poppins",sans-serif;'>{value}</div>
               <div style='font-size:0.82rem;color:#7090b8;font-weight:600;
@@ -1278,7 +1276,7 @@ def main():
             fig.update_layout(
                 barmode="relative", title="<b>Annual value by source ($M)</b>",
                 title_font=dict(size=20, color="#FFD520"),
-                height=680,
+                height=520,
                 hoverlabel=dict(
                     bgcolor="#0d2a52", bordercolor="#FFD520",
                     font=dict(size=14, color="#e0eeff", family="Inter, Poppins, sans-serif"),
