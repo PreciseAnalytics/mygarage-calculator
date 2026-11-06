@@ -326,6 +326,8 @@ def m(x: float) -> str:
     return f"{sign}${abs(x) / 1e6:,.1f}M"
 
 
+_M_KEYS = {"advertising", "build_cost", "fixed_cost"}  # keys displayed in $M
+
 def apply_preset():
     """Apply the current preset values to session state.
     Must be called before any widgets are instantiated (top of main()).
@@ -335,11 +337,31 @@ def apply_preset():
     for k, v in PRESETS[st.session_state["preset"]].items():
         v = int(v) if k == "start_year" else float(v)
         st.session_state[k] = v
-        st.session_state[f"_{k}"] = v * 100  # slider mirror for percentage inputs
+        st.session_state[f"_{k}"] = v * 100       # slider mirror for % inputs
+        if k in _M_KEYS:
+            st.session_state[f"_m_{k}"] = v / 1e6  # $M mirror for numM inputs
 
 
 def num(label, key, step, fmt="%.0f", help=None, minv=0.0):
     return st.number_input(label, key=key, step=step, format=fmt, help=help, min_value=minv)
+
+
+def numM(label, key, step_m=1.0, help=None, minv=0.0):
+    """Number input displayed and entered in $M — stores full dollar value in session state."""
+    mirror = f"_m_{key}"
+    # Initialise mirror from the real key on first render
+    if mirror not in st.session_state and key in st.session_state:
+        st.session_state[mirror] = st.session_state[key] / 1e6
+    v_m = st.number_input(
+        f"{label} ($M)",
+        key=mirror,
+        step=step_m,
+        format="%.2f",
+        help=(help or "") + " — enter value in millions (e.g. 8 = $8M)",
+        min_value=minv,
+    )
+    st.session_state[key] = v_m * 1e6
+    return v_m * 1e6
 
 
 def pct(label, key, maxv=100.0, step=1.0, help=None):
@@ -368,13 +390,18 @@ def _set(key, value):
     st.session_state["_pending_overrides"][key] = float(value)
 
 
-def on_reset():
-    st.session_state["_scenario_sel"] = "Realistic"
-    st.session_state["preset"] = "Realistic (recommended)"
-    st.session_state["_pending_preset"] = "Realistic (recommended)"
-    st.session_state["_lift_sel"] = None
-    st.session_state["_reward_sel"] = None
-    st.session_state["_enroll_sel"] = None
+def on_reset(mode="all"):
+    """mode='all' resets everything; mode='inputs' resets sidebar inputs only."""
+    if mode in ("all", "scenarios"):
+        st.session_state["_scenario_sel"] = "Realistic"
+        st.session_state["preset"] = "Realistic (recommended)"
+        st.session_state["_pending_preset"] = "Realistic (recommended)"
+        st.session_state["_lift_sel"] = None
+        st.session_state["_reward_sel"] = None
+        st.session_state["_enroll_sel"] = None
+    if mode in ("all", "inputs"):
+        # Re-apply the current preset to reset sidebar inputs to their defaults
+        st.session_state["_pending_preset"] = st.session_state.get("preset", "Realistic (recommended)")
 
 
 def _btn_row(label, options, state_key, fmt_func, on_select):
@@ -417,8 +444,8 @@ def _ctrl_section_css(section_key: str, btn_keys: list[str], sel_key: str, sel_v
     """Emit CSS for one control section: colored bg wrapper + per-button selected state."""
     t = _CTRL_THEMES[section_key]
     lines = [
-        f".ctrl-wrap-{section_key} {{ background:{t['bg']}; border-radius:10px; "
-        f"border:2px solid {t['border']}; padding:14px 16px; margin:0; }}",
+        f".ctrl-wrap-{section_key} {{ background:{t['bg']}; border-radius:0; "
+        f"border:none; padding:14px 16px; margin:0; }}",
         f".ctrl-wrap-{section_key} .ctrl-label {{ color:#ffffff !important; text-align:center !important; }}",
     ]
     for bkey, opt in btn_keys:
@@ -437,7 +464,7 @@ def _ctrl_section_css(section_key: str, btn_keys: list[str], sel_key: str, sel_v
             f"letter-spacing:0!important;}}"
             f" .st-key-{bkey} button p, .st-key-{bkey} button div"
             f" {{font-size:1.45rem!important;font-weight:{'700' if is_sel else '600'}!important;"
-            f"color:{tc}!important;font-family:'Segoe UI','Aptos','Calibri','Inter',sans-serif!important;"
+            f"color:{tc}!important;font-family:'Inter','Poppins',sans-serif!important;"
             f"letter-spacing:0!important;}}"
         )
     return "\n".join(lines)
@@ -464,18 +491,23 @@ def demo_controls():
         _ctrl_section_css("lift", lift_keys, "_lift_sel", sel_lift),
         _ctrl_section_css("reward", rew_keys, "_reward_sel", sel_rew),
         _ctrl_section_css("enroll", enr_keys, "_enroll_sel", sel_enr),
-        ".st-key-reset_all_btn button{background:#C62828!important;color:#ffffff!important;"
-        "border:none!important;font-size:1.4rem!important;font-weight:900!important;"
-        "border-radius:8px!important;padding:12px 0!important;letter-spacing:.5px!important;}"
     ])
     st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
     container_css = """
-    .st-key-wrap_scenario { background:#004D40; border-radius:10px; border:2px solid #00BFA5; padding:14px; }
-    .st-key-wrap_lift { background:#311B92; border-radius:10px; border:2px solid #7C4DFF; padding:14px; }
-    .st-key-wrap_reward { background:#BF360C; border-radius:10px; border:2px solid #FF6E40; padding:14px; }
-    .st-key-wrap_enroll { background:#1B5E20; border-radius:10px; border:2px solid #69F0AE; padding:14px; }
+    .st-key-wrap_scenario { background:#004D40; border-radius:0; border:none; padding:14px 12px; margin:0; }
+    .st-key-wrap_lift     { background:#311B92; border-radius:0; border:none; padding:14px 12px; margin:0; }
+    .st-key-wrap_reward   { background:#BF360C; border-radius:0; border:none; padding:14px 12px; margin:0; }
+    .st-key-wrap_enroll   { background:#1B5E20; border-radius:0; border:none; padding:14px 12px; margin:0; }
     """
     st.markdown(f"<style>{container_css}</style>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style='background:#04152D;padding:6px 0 2px 0;margin:0 -1.5rem;
+                text-align:center;font-size:0.78rem;font-weight:700;
+                text-transform:uppercase;letter-spacing:2px;color:#90b4e0;'>
+        Quick scenario controls — Scenario &nbsp;·&nbsp; Repeat-rate lift &nbsp;·&nbsp;
+        Avg reward &nbsp;·&nbsp; New-buyer enrollment
+    </div>
+    """, unsafe_allow_html=True)
     c_sc, c_lift, c_rew, c_enr = st.columns(4)
     with c_sc:
         with st.container(key="wrap_scenario"):
@@ -524,11 +556,15 @@ def demo_controls():
                         st.session_state["_enroll_sel"] = opt
                         _set("new_enroll", opt)
                         st.rerun()
-    _, reset_col, _ = st.columns([3, 1, 3])
-    with reset_col:
-        if st.button("↺  Reset to default", key="reset_all_btn", width="stretch"):
-            on_reset()
-            st.rerun()
+            st.markdown("""<style>
+            .st-key-reset_scenarios_btn button{background:rgba(0,0,0,0.25)!important;
+                color:#ffffff!important;border:1px solid rgba(255,255,255,0.3)!important;
+                font-size:0.95rem!important;font-weight:700!important;border-radius:6px!important;
+                padding:6px 0!important;margin-top:4px!important;}
+            </style>""", unsafe_allow_html=True)
+            if st.button("↺  Reset scenarios", key="reset_scenarios_btn", width="stretch"):
+                on_reset("scenarios")
+                st.rerun()
 
 
 def _year_banner(df: pd.DataFrame, sel_t: int | None):
@@ -557,7 +593,8 @@ def _year_banner(df: pd.DataFrame, sel_t: int | None):
 
 
 def main():
-    st.set_page_config(page_title="MyGarage Value Calculator", page_icon="🚗", layout="wide")
+    st.set_page_config(page_title="MyGarage Value Calculator", page_icon="🚗", layout="wide",
+                       initial_sidebar_state="collapsed")
 
     if "preset" not in st.session_state:
         st.session_state["preset"] = "Realistic (recommended)"
@@ -579,22 +616,52 @@ def main():
     for k, v in st.session_state.pop("_pending_overrides", {}).items():
         st.session_state[k] = v
         st.session_state[f"_{k}"] = v * 100
+        if k in _M_KEYS:
+            st.session_state[f"_m_{k}"] = v / 1e6
 
     # Logo in sidebar — clicking navigates home
     st.logo("logo.svg", link="http://localhost:8501", size="large")
+
+    # Sidebar collapse button — make the expand arrow visible when sidebar is hidden
+    st.markdown("""
+    <style>
+    #MainMenu { visibility: hidden; }
+    div[data-testid="stSidebarCollapsedControl"] {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    div[data-testid="stSidebarCollapsedControl"] button {
+        background: #0d3880 !important;
+        border: 2px solid #FFD520 !important;
+        border-left: none !important;
+        border-radius: 0 8px 8px 0 !important;
+        width: 36px !important;
+        height: 52px !important;
+        opacity: 1 !important;
+    }
+    div[data-testid="stSidebarCollapsedControl"] button svg {
+        color: #FFD520 !important;
+        fill: #FFD520 !important;
+        width: 22px !important;
+        height: 22px !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
     # ---------------- Sidebar ----------------
     with st.sidebar:
         st.markdown("## MyGarage inputs")
         st.markdown(f"Scenario: **{st.session_state['preset']}**. Pick scenarios with the "
                     "buttons on the main page; fine-tune any input below.")
+        st.caption("💡 Press **`[`** or click the **›** tab at the screen edge to show/hide this panel.")
 
         with st.expander("CarMax baseline (FY2026)", expanded=False):
             num("Retail used units / year", "retail_units", 1000.0)
             num("Average selling price ($)", "asp", 100.0)
             num("Used gross profit per car ($)", "gpu", 25.0)
             num("EPP revenue per car ($)", "epp_per_car", 25.0)
-            num("Advertising spend ($)", "advertising", 1e6)
+            numM("Advertising spend", "advertising", 1.0)
 
         with st.expander("Adoption", expanded=False):
             num("Recent owners eligible at launch", "recent_owners", 10000.0,
@@ -623,8 +690,8 @@ def main():
             num("Labor cost per scan ($)", "scan_cost", 1.0)
 
         with st.expander("Program costs"):
-            num("One-time build ($)", "build_cost", 250000.0)
-            num("Fixed run cost / year ($)", "fixed_cost", 100000.0)
+            numM("One-time build", "build_cost", 0.25)
+            numM("Fixed run cost / year", "fixed_cost", 0.1)
 
         with st.expander("Cost-savings levers", expanded=False):
             num("Acquisition cost avoided per extra repeat buyer (x avg ad $/car)",
@@ -648,6 +715,16 @@ def main():
             pct("Tax rate", "tax_rate", 40.0)
             pct("Discount rate (NPV)", "discount_rate", 25.0)
             st.number_input("Build year (Year 0)", key="start_year", step=1, format="%d")
+
+        st.markdown("""<style>
+        .st-key-reset_inputs_btn button{background:#1a3d6e!important;color:#FFD520!important;
+            border:1px solid rgba(255,213,32,0.5)!important;font-weight:700!important;
+            border-radius:6px!important;width:100%!important;}
+        </style>""", unsafe_allow_html=True)
+        if st.button("↺  Reset inputs to scenario defaults", key="reset_inputs_btn", width="stretch",
+                     help="Restore all sidebar values to the current scenario's defaults"):
+            on_reset("inputs")
+            st.rerun()
 
     p = Inputs(**{f.name: st.session_state[f.name] for f in fields(Inputs)})
     p.start_year = int(p.start_year)
@@ -700,11 +777,45 @@ def main():
         font-family: "Inter", "Poppins", sans-serif !important;
     }
 
+    /* ── Sidebar collapse/expand toggle ── */
+    div[data-testid="stSidebarCollapsedControl"] button,
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="stSidebarExpandButton"] {
+        background: #0d3880 !important;
+        border-radius: 0 8px 8px 0 !important;
+        border: 2px solid #FFD520 !important;
+        border-left: none !important;
+        opacity: 1 !important;
+        cursor: pointer !important;
+    }
+    [data-testid="stSidebarCollapseButton"] svg,
+    [data-testid="stSidebarExpandButton"] svg {
+        color: #FFD520 !important;
+        fill: #FFD520 !important;
+        width: 22px !important;
+        height: 22px !important;
+    }
+
+    /* ── Plotly cursor: pointer instead of crosshair ── */
+    .js-plotly-plot .plotly .cursor-crosshair { cursor: pointer !important; }
+    .js-plotly-plot .plotly svg { cursor: pointer !important; }
+
     /* ── Remove top dead space ── */
     header[data-testid="stHeader"] { display: none !important; }
     .stMainBlockContainer { padding-top: 0 !important; padding-left: 1.5rem !important; padding-right: 1.5rem !important; }
     /* Tight vertical rhythm — everything flows as one page */
     .stVerticalBlock { gap: 0.35rem !important; }
+    /* Control row: no gap between the 4 colour sections */
+    .st-key-wrap_scenario > div, .st-key-wrap_lift > div,
+    .st-key-wrap_reward > div, .st-key-wrap_enroll > div { gap: 0 !important; }
+    /* Kill column gaps so colour blocks sit flush against each other */
+    .st-key-wrap_scenario, .st-key-wrap_lift,
+    .st-key-wrap_reward,   .st-key-wrap_enroll { height: 100% !important; }
+    [data-testid="stHorizontalBlock"]:has(.st-key-wrap_scenario) {
+        gap: 0 !important;
+        padding: 0 !important;
+        margin: 0 -1.5rem !important;
+    }
 
     /* ═══════════════════════════════════════════════════
        HERO BANNER — full-width flush header, no rounding
@@ -747,7 +858,7 @@ def main():
        CONTROLS — section labels
     ═══════════════════════════════════════════════════ */
     .ctrl-label {
-        font-family: "Segoe UI", "Aptos", "Calibri", "Inter", sans-serif !important;
+        font-family: "Inter", "Poppins", sans-serif !important;
         font-size: 1.25rem !important;
         font-weight: 700 !important;
         margin-bottom: 8px !important;
@@ -756,7 +867,7 @@ def main():
         text-align: center !important;
     }
     [data-testid="stButton"] button {
-        font-family: "Segoe UI", "Aptos", "Calibri", "Inter", sans-serif !important;
+        font-family: "Inter", "Poppins", sans-serif !important;
         font-size: 1.45rem !important;
         font-weight: 600 !important;
         padding: 12px 8px !important;
@@ -768,7 +879,7 @@ def main():
     }
     [data-testid="stButton"] button p,
     [data-testid="stButton"] button div {
-        font-family: "Segoe UI", "Aptos", "Calibri", "Inter", sans-serif !important;
+        font-family: "Inter", "Poppins", sans-serif !important;
         font-size: 1.45rem !important;
         font-weight: 600 !important;
         line-height: 1.2 !important;
@@ -876,32 +987,32 @@ def main():
         background: #0d2a52;
         border-left: 5px solid #FFD520;
         border-radius: 10px;
-        padding: 24px 26px 20px 26px;
-        margin-bottom: 12px;
-        height: 100%;
+        padding: 28px 30px 24px 30px;
+        margin-bottom: 10px;
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        min-height: 540px;
     }
     .pitch-box h3 {
-        color: #FFD520; font-size: 1.3rem; font-weight: 800; margin: 0 0 16px 0;
+        color: #FFD520; font-size: 1.5rem; font-weight: 800; margin: 0 0 20px 0;
     }
-    .pitch-box ul { margin: 0; padding-left: 20px; flex: 1; }
+    .pitch-box ul { margin: 0; padding-left: 22px; flex: 1; }
     .pitch-box li {
-        color: #e0eeff; font-size: 1.15rem; margin-bottom: 14px; line-height: 1.7;
+        color: #e0eeff; font-size: 1.25rem; margin-bottom: 18px; line-height: 1.75;
     }
     .pitch-box li b { color: #FFD520; }
     .sga-bar {
         background: #0d2a52;
         border: 1px solid #FFD520;
         border-radius: 8px;
-        padding: 14px 20px;
+        padding: 16px 22px;
         color: #e0eeff;
-        font-size: 1.1rem;
-        line-height: 1.6;
+        font-size: 1.2rem;
+        line-height: 1.7;
     }
-    .sga-bar b { color: #FFD520; font-size: 1.2rem; }
+    .sga-bar b { color: #FFD520; font-size: 1.3rem; }
 
     /* ═══════════════════════════════════════════════════
        SIDEBAR + LOGO
@@ -1119,19 +1230,57 @@ def main():
         left, right = st.columns([3, 2])
         with left:
             fig = go.Figure()
+
+            # Build rich hover data for each year row
+            hover_profit = [
+                f"<b>{row['Year']}</b><br>"
+                f"<b style='color:#90b8ff'>Program profit: ${row['Program profit']/1e6:+.2f}M</b><br>"
+                f"Revenue: ${row['Revenue']/1e6:.2f}M<br>"
+                f"Variable costs: ${row['Variable costs']/1e6:.2f}M<br>"
+                f"Rewards paid: ${row['Rewards paid']/1e6:.2f}M<br>"
+                f"Fixed costs: ${row['Fixed costs']/1e6:.2f}M<br>"
+                f"Repeat cars: {row['Incremental repeat cars']:,.0f}<br>"
+                f"Service visits: {row['Service visits']:,.0f}"
+                for _, row in df.iterrows()
+            ]
+            hover_savings = [
+                f"<b>{row['Year']}</b><br>"
+                f"<b style='color:#FFD520'>Cost savings: ${row['Total cost savings']/1e6:.2f}M</b><br>"
+                f"Marketing (new): ${row['Savings: marketing (new)']/1e6:.2f}M<br>"
+                f"Marketing (owned): ${row['Savings: marketing (owned channel)']/1e6:.2f}M<br>"
+                f"Reconditioning: ${row['Savings: reconditioning']/1e6:.2f}M<br>"
+                f"Appraisal risk: ${row['Savings: appraisal risk']/1e6:.2f}M<br>"
+                f"Customer care: ${row['Savings: customer care']/1e6:.2f}M<br>"
+                f"Early detection: ${row['Savings: early detection']/1e6:.2f}M"
+                for _, row in df.iterrows()
+            ]
+            hover_cum = [
+                f"<b>{row['Year']}</b><br>"
+                f"<b style='color:#00E676'>Cumulative value: ${row['Cumulative total value']/1e6:.2f}M</b><br>"
+                f"Total value this year: ${row['Total value']/1e6:.2f}M<br>"
+                f"Enrolled owners: {int(row['Enrolled owners']):,}"
+                for _, row in df.iterrows()
+            ]
+
             fig.add_bar(x=df["Year"], y=df["Program profit"] / 1e6, name="Program profit",
                         marker_color="#2979FF",
                         text=[f"${v/1e6:+.1f}M" for v in df["Program profit"]],
-                        textposition="outside", textfont=dict(color="#90b8ff", size=15, family="Arial Black"))
+                        textposition="outside", textfont=dict(color="#90b8ff", size=17, family="Inter, Poppins, sans-serif"),
+                        hovertemplate="%{customdata}<extra></extra>",
+                        customdata=hover_profit)
             fig.add_bar(x=df["Year"], y=df["Total cost savings"] / 1e6, name="Cost savings",
                         marker_color=ACCENT,
                         text=[f"${v/1e6:.1f}M" if v > 0 else "" for v in df["Total cost savings"]],
-                        textposition="outside", textfont=dict(color="#FFD520", size=15, family="Arial Black"))
+                        textposition="outside", textfont=dict(color="#FFD520", size=17, family="Inter, Poppins, sans-serif"),
+                        hovertemplate="%{customdata}<extra></extra>",
+                        customdata=hover_savings)
             cum_vals = df["Cumulative total value"] / 1e6
             fig.add_scatter(x=df["Year"], y=cum_vals,
                             name="Cumulative value", mode="lines+markers",
                             line=dict(color=GREEN, width=4),
-                            marker=dict(size=10, color=GREEN))
+                            marker=dict(size=10, color=GREEN),
+                            hovertemplate="%{customdata}<extra></extra>",
+                            customdata=hover_cum)
             # Annotate each cumulative point — skip Yr 0 (always -$8M build)
             for i, (yr, v) in enumerate(zip(df["Year"], cum_vals)):
                 if i == 0:
@@ -1140,8 +1289,8 @@ def main():
                     x=yr, y=v,
                     text=f"<b>${v:.1f}M</b>",
                     showarrow=False,
-                    yshift=18,
-                    font=dict(color=GREEN, size=14, family="Arial Black"),
+                    yshift=20,
+                    font=dict(color=GREEN, size=16, family="Inter, Poppins, sans-serif"),
                     bgcolor="rgba(4,21,45,0.75)",
                     borderpad=3,
                 )
@@ -1150,7 +1299,12 @@ def main():
             fig.update_layout(
                 barmode="relative", title="<b>Annual value by source ($M)</b>",
                 title_font=dict(size=20, color="#FFD520"),
-                height=520,
+                height=680,
+                hoverlabel=dict(
+                    bgcolor="#0d2a52", bordercolor="#FFD520",
+                    font=dict(size=14, color="#e0eeff", family="Inter, Poppins, sans-serif"),
+                ),
+                dragmode=False,
                 legend=dict(orientation="h", y=-0.12, font=dict(size=15),
                             bgcolor="rgba(0,0,0,0)", bordercolor="rgba(0,0,0,0)"),
                 margin=dict(t=60, l=10, r=10, b=60),
