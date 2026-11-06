@@ -457,13 +457,13 @@ def _ctrl_section_css(section_key: str, btn_keys: list[str], sel_key: str, sel_v
         border_css = f"border:2px solid {bd}!important;" if is_sel else "border:none!important;box-shadow:none!important;"
         lines.append(
             f".st-key-{bkey} button {{background:{bg}!important;color:{tc}!important;"
-            f"{border_css}font-size:1.45rem!important;"
-            f"font-weight:{'700' if is_sel else '600'}!important;padding:12px 6px!important;"
-            f"border-radius:6px!important;min-height:54px!important;"
+            f"{border_css}font-size:1.05rem!important;"
+            f"font-weight:{'700' if is_sel else '600'}!important;padding:8px 4px!important;"
+            f"border-radius:6px!important;min-height:38px!important;"
             f"font-family:'Inter','Poppins',sans-serif!important;"
             f"letter-spacing:0!important;}}"
             f" .st-key-{bkey} button p, .st-key-{bkey} button div"
-            f" {{font-size:1.45rem!important;font-weight:{'700' if is_sel else '600'}!important;"
+            f" {{font-size:1.05rem!important;font-weight:{'700' if is_sel else '600'}!important;"
             f"color:{tc}!important;font-family:'Inter','Poppins',sans-serif!important;"
             f"letter-spacing:0!important;}}"
         )
@@ -816,12 +816,12 @@ def main():
     .mg-hero-logo svg { transition: opacity 0.15s; }
     .mg-hero-logo a:hover svg { opacity: 0.8; }
     .mg-hero-text h1 {
-        font-size: 2.4rem; font-weight: 900; color: #FFD520;
+        font-size: 1.9rem; font-weight: 900; color: #FFD520;
         margin: 0 0 2px 0; letter-spacing: -0.5px;
     }
-    .mg-hero-text .sub { font-size: 1.15rem; color: #e0eeff; font-weight: 500; }
+    .mg-hero-text .sub { font-size: 0.95rem; color: #e0eeff; font-weight: 500; }
     .mg-hero-text .team-line {
-        font-size: 1.1rem; color: #ffffff; margin-top: 4px; font-weight: 700;
+        font-size: 0.88rem; color: #ffffff; margin-top: 4px; font-weight: 700;
     }
     .mg-hero-scenario { text-align: right; flex-shrink: 0; }
     .mg-hero-scenario .sc-label {
@@ -838,20 +838,20 @@ def main():
     ═══════════════════════════════════════════════════ */
     .ctrl-label {
         font-family: "Inter", "Poppins", sans-serif !important;
-        font-size: 1.25rem !important;
+        font-size: 1rem !important;
         font-weight: 700 !important;
-        margin-bottom: 8px !important;
+        margin-bottom: 6px !important;
         letter-spacing: 0 !important;
         color: #ffffff !important;
         text-align: center !important;
     }
     [data-testid="stButton"] button {
         font-family: "Inter", "Poppins", sans-serif !important;
-        font-size: 1.45rem !important;
+        font-size: 1.1rem !important;
         font-weight: 600 !important;
-        padding: 12px 8px !important;
+        padding: 8px 6px !important;
         border-radius: 6px !important;
-        min-height: 52px !important;
+        min-height: 40px !important;
         border: none !important;
         box-shadow: none !important;
         letter-spacing: 0 !important;
@@ -859,7 +859,7 @@ def main():
     [data-testid="stButton"] button p,
     [data-testid="stButton"] button div {
         font-family: "Inter", "Poppins", sans-serif !important;
-        font-size: 1.45rem !important;
+        font-size: 1.1rem !important;
         font-weight: 600 !important;
         line-height: 1.2 !important;
         letter-spacing: 0 !important;
@@ -887,9 +887,9 @@ def main():
         padding: 0 20px; border-right: 1px solid rgba(255,213,32,0.2);
     }
     .inputs-bar .ib-item:last-child { border-right: none; }
-    .inputs-bar .ib-val  { font-size: 1.8rem; font-weight: 900; color: #FFD520; line-height: 1.1; }
+    .inputs-bar .ib-val  { font-size: 1.35rem; font-weight: 900; color: #FFD520; line-height: 1.1; }
     .inputs-bar .ib-lbl  {
-        font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;
+        font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px;
         color: #90b4e0; font-weight: 700; margin-top: 2px;
     }
 
@@ -922,12 +922,12 @@ def main():
         margin-bottom: 6px;
     }
     .kpi-value {
-        font-size: 2.8rem;
+        font-size: 2rem;
         font-weight: 900;
         line-height: 1;
         margin-bottom: 4px;
     }
-    .kpi-delta { font-size: 0.88rem; color: #b0c8f0; font-weight: 600; }
+    .kpi-delta { font-size: 0.78rem; color: #b0c8f0; font-weight: 600; }
     .kv-green  { color: #4CAF50; }
     .kv-orange { color: #FF9800; }
     .kv-blue   { color: #64B5F6; }
@@ -956,8 +956,8 @@ def main():
         padding: 0 16px; border-right: 1px solid rgba(100,140,200,0.25);
     }
     .callout-strip .co-item:last-child { border-right: none; }
-    .callout-strip .co-num  { font-size: 1.9rem; font-weight: 900; color: #FFD520; line-height: 1.1; }
-    .callout-strip .co-txt  { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.8px; color: #90b4e0; font-weight: 700; margin-top: 2px; text-align: center; }
+    .callout-strip .co-num  { font-size: 1.4rem; font-weight: 900; color: #FFD520; line-height: 1.1; }
+    .callout-strip .co-txt  { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.8px; color: #90b4e0; font-weight: 700; margin-top: 2px; text-align: center; }
 
     /* ═══════════════════════════════════════════════════
        PITCH BOX + SGA BAR
@@ -1026,20 +1026,20 @@ def main():
         border-radius: 0 !important;
     }
 
-    [data-testid="stSidebar"] { font-size: 1.2rem !important; }
+    [data-testid="stSidebar"] { font-size: 0.9rem !important; }
     [data-testid="stSidebar"] p,
     [data-testid="stSidebar"] span,
     [data-testid="stSidebar"] label {
-        font-size: 1.2rem !important;
+        font-size: 0.9rem !important;
         font-weight: 600 !important;
-        line-height: 1.6 !important;
+        line-height: 1.5 !important;
     }
-    [data-testid="stSidebar"] input { font-size: 1.2rem !important; font-weight: 700 !important; }
+    [data-testid="stSidebar"] input { font-size: 0.9rem !important; font-weight: 700 !important; }
     [data-testid="stSidebar"] summary p,
     [data-testid="stSidebar"] summary span {
-        font-size: 1.25rem !important; font-weight: 800 !important;
+        font-size: 0.95rem !important; font-weight: 800 !important;
     }
-    [data-testid="stSidebar"] h2 { font-size: 1.8rem !important; font-weight: 900 !important; }
+    [data-testid="stSidebar"] h2 { font-size: 1.3rem !important; font-weight: 900 !important; }
     /* More breathing room between sidebar widgets */
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 1rem !important; }
     [data-testid="stSidebar"] [data-testid="stNumberInput"] { margin-bottom: 0.5rem !important; }
@@ -1137,7 +1137,7 @@ def main():
                         padding:16px 8px 4px 8px;border-left:1px solid rgba(255,213,32,0.15);'>
               <div style='font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;
                           font-weight:700;color:#90b4e0;margin-bottom:6px;'>{label}</div>
-              <div style='font-size:2.5rem;font-weight:900;line-height:1;color:{val_color};
+              <div style='font-size:1.9rem;font-weight:900;line-height:1;color:{val_color};
                           font-family:"Inter","Poppins",sans-serif;'>{value}</div>
               <div style='font-size:0.82rem;color:#7090b8;font-weight:600;
                           margin-top:6px;padding-bottom:8px;'>{delta}</div>
