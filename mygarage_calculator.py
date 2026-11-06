@@ -605,6 +605,8 @@ def main():
         st.session_state["selected_year_t"] = None
     if "kpi_sel" not in st.session_state:
         st.session_state["kpi_sel"] = None
+    if "_toggle_sidebar" not in st.session_state:
+        st.session_state["_toggle_sidebar"] = False
 
     # Apply any pending preset change BEFORE widgets are instantiated
     if st.session_state.get("_pending_preset"):
@@ -1099,6 +1101,54 @@ def main():
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # Prominent sidebar toggle button — always visible in top-right area
+    st.markdown("""
+    <style>
+    .st-key-open_sidebar_btn button {
+        background: #FFD520 !important;
+        color: #051e45 !important;
+        font-weight: 900 !important;
+        font-size: 1.15rem !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 10px 20px !important;
+        min-height: 44px !important;
+        margin-bottom: 4px !important;
+    }
+    .st-key-open_sidebar_btn button p,
+    .st-key-open_sidebar_btn button div {
+        font-size: 1.15rem !important;
+        font-weight: 900 !important;
+        color: #051e45 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    col_spacer, col_btn = st.columns([8, 1])
+    with col_btn:
+        if st.button("⚙ Inputs", key="open_sidebar_btn", width="stretch",
+                     help="Open the inputs panel to fine-tune assumptions"):
+            st.session_state["_toggle_sidebar"] = True
+            st.rerun()
+    # JS sidebar toggle — only fires the run immediately after button click
+    if st.session_state.pop("_toggle_sidebar", False):
+        st.markdown("""
+        <script>
+        (function() {
+            var selectors = [
+                '[data-testid="stSidebarCollapseButton"]',
+                '[data-testid="stSidebarExpandButton"]',
+                'button[aria-label="Close sidebar"]',
+                'button[aria-label="Open sidebar"]',
+                '[data-testid="stSidebarCollapsedControl"] button'
+            ];
+            for (var s of selectors) {
+                var btn = window.parent.document.querySelector(s);
+                if (btn) { btn.click(); break; }
+            }
+        })();
+        </script>
+        """, unsafe_allow_html=True)
 
     demo_controls()
 
