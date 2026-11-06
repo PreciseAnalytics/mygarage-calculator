@@ -624,15 +624,25 @@ def main():
     # Logo in sidebar — clicking navigates home
     st.logo("logo.svg", link="http://localhost:8501", size="large")
 
-    # Hide both the collapse arrow (inside sidebar) and the expand tab (when collapsed)
-    # so the sidebar cannot be accidentally closed
+    # Force sidebar always open and hide both toggle buttons
     st.markdown("""
     <style>
     #MainMenu { visibility: hidden; }
-    /* Hide the ‹ collapse button inside the sidebar */
-    [data-testid="stSidebarCollapseButton"] { display: none !important; }
-    /* Hide the › expand tab shown when sidebar is collapsed */
-    div[data-testid="stSidebarCollapsedControl"] { display: none !important; }
+    /* Always show the sidebar — override any collapsed browser state */
+    [data-testid="stSidebar"] {
+        transform: none !important;
+        display: block !important;
+        visibility: visible !important;
+        left: 0 !important;
+        min-width: 260px !important;
+        max-width: 260px !important;
+        width: 260px !important;
+    }
+    /* Hide collapse ‹ and expand › buttons so user can't close it */
+    [data-testid="stSidebarCollapseButton"],
+    div[data-testid="stSidebarCollapsedControl"] {
+        display: none !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -982,18 +992,6 @@ def main():
         line-height: 1.7;
     }
     .sga-bar b { color: #FFD520; font-size: 1.3rem; }
-
-    /* ═══════════════════════════════════════════════════
-       SIDEBAR — narrow + always visible
-    ═══════════════════════════════════════════════════ */
-    [data-testid="stSidebar"] {
-        min-width: 260px !important;
-        max-width: 260px !important;
-        width: 260px !important;
-    }
-    [data-testid="stSidebar"] > div:first-child {
-        width: 260px !important;
-    }
 
     /* ═══════════════════════════════════════════════════
        SIDEBAR + LOGO
