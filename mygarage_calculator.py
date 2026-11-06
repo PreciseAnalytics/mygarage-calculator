@@ -594,7 +594,7 @@ def _year_banner(df: pd.DataFrame, sel_t: int | None):
 
 def main():
     st.set_page_config(page_title="MyGarage Value Calculator", page_icon="🚗", layout="wide",
-                       initial_sidebar_state="collapsed")
+                       initial_sidebar_state="expanded")
 
     if "preset" not in st.session_state:
         st.session_state["preset"] = "Realistic (recommended)"
@@ -1017,6 +1017,18 @@ def main():
     .sga-bar b { color: #FFD520; font-size: 1.3rem; }
 
     /* ═══════════════════════════════════════════════════
+       SIDEBAR — narrow + always visible
+    ═══════════════════════════════════════════════════ */
+    [data-testid="stSidebar"] {
+        min-width: 260px !important;
+        max-width: 260px !important;
+        width: 260px !important;
+    }
+    [data-testid="stSidebar"] > div:first-child {
+        width: 260px !important;
+    }
+
+    /* ═══════════════════════════════════════════════════
        SIDEBAR + LOGO
     ═══════════════════════════════════════════════════ */
     /* Make the logo prominent — full-width navy block at top of sidebar */
@@ -1102,53 +1114,6 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # Prominent sidebar toggle button — always visible in top-right area
-    st.markdown("""
-    <style>
-    .st-key-open_sidebar_btn button {
-        background: #FFD520 !important;
-        color: #051e45 !important;
-        font-weight: 900 !important;
-        font-size: 1.15rem !important;
-        border: none !important;
-        border-radius: 8px !important;
-        padding: 10px 20px !important;
-        min-height: 44px !important;
-        margin-bottom: 4px !important;
-    }
-    .st-key-open_sidebar_btn button p,
-    .st-key-open_sidebar_btn button div {
-        font-size: 1.15rem !important;
-        font-weight: 900 !important;
-        color: #051e45 !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    col_spacer, col_btn = st.columns([8, 1])
-    with col_btn:
-        if st.button("⚙ Inputs", key="open_sidebar_btn", width="stretch",
-                     help="Open the inputs panel to fine-tune assumptions"):
-            st.session_state["_toggle_sidebar"] = True
-            st.rerun()
-    # JS sidebar toggle — only fires the run immediately after button click
-    if st.session_state.pop("_toggle_sidebar", False):
-        st.markdown("""
-        <script>
-        (function() {
-            var selectors = [
-                '[data-testid="stSidebarCollapseButton"]',
-                '[data-testid="stSidebarExpandButton"]',
-                'button[aria-label="Close sidebar"]',
-                'button[aria-label="Open sidebar"]',
-                '[data-testid="stSidebarCollapsedControl"] button'
-            ];
-            for (var s of selectors) {
-                var btn = window.parent.document.querySelector(s);
-                if (btn) { btn.click(); break; }
-            }
-        })();
-        </script>
-        """, unsafe_allow_html=True)
 
     demo_controls()
 
