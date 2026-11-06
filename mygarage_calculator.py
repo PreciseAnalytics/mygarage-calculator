@@ -624,30 +624,15 @@ def main():
     # Logo in sidebar — clicking navigates home
     st.logo("logo.svg", link="http://localhost:8501", size="large")
 
-    # Sidebar collapse button — make the expand arrow visible when sidebar is hidden
+    # Hide both the collapse arrow (inside sidebar) and the expand tab (when collapsed)
+    # so the sidebar cannot be accidentally closed
     st.markdown("""
     <style>
     #MainMenu { visibility: hidden; }
-    div[data-testid="stSidebarCollapsedControl"] {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
-    div[data-testid="stSidebarCollapsedControl"] button {
-        background: #0d3880 !important;
-        border: 2px solid #FFD520 !important;
-        border-left: none !important;
-        border-radius: 0 8px 8px 0 !important;
-        width: 36px !important;
-        height: 52px !important;
-        opacity: 1 !important;
-    }
-    div[data-testid="stSidebarCollapsedControl"] button svg {
-        color: #FFD520 !important;
-        fill: #FFD520 !important;
-        width: 22px !important;
-        height: 22px !important;
-    }
+    /* Hide the ‹ collapse button inside the sidebar */
+    [data-testid="stSidebarCollapseButton"] { display: none !important; }
+    /* Hide the › expand tab shown when sidebar is collapsed */
+    div[data-testid="stSidebarCollapsedControl"] { display: none !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -779,24 +764,6 @@ def main():
         font-family: "Inter", "Poppins", sans-serif !important;
     }
 
-    /* ── Sidebar collapse/expand toggle ── */
-    div[data-testid="stSidebarCollapsedControl"] button,
-    [data-testid="stSidebarCollapseButton"],
-    [data-testid="stSidebarExpandButton"] {
-        background: #0d3880 !important;
-        border-radius: 0 8px 8px 0 !important;
-        border: 2px solid #FFD520 !important;
-        border-left: none !important;
-        opacity: 1 !important;
-        cursor: pointer !important;
-    }
-    [data-testid="stSidebarCollapseButton"] svg,
-    [data-testid="stSidebarExpandButton"] svg {
-        color: #FFD520 !important;
-        fill: #FFD520 !important;
-        width: 22px !important;
-        height: 22px !important;
-    }
 
     /* ── Plotly cursor: pointer instead of crosshair ── */
     .js-plotly-plot .plotly .cursor-crosshair { cursor: pointer !important; }
