@@ -327,6 +327,11 @@ def m(x: float) -> str:
 
 
 def apply_preset():
+    """Apply the current preset values to session state.
+    Must be called before any widgets are instantiated (top of main()).
+    Button handlers must NOT call this directly — set _pending_preset instead
+    and let the top-of-run guard apply it on the next rerun.
+    """
     for k, v in PRESETS[st.session_state["preset"]].items():
         v = int(v) if k == "start_year" else float(v)
         st.session_state[k] = v
@@ -343,11 +348,11 @@ def pct(label, key, maxv=100.0, step=1.0, help=None):
     return v / 100
 
 
-BRAND = "#053361"   # CarMax blue
+BRAND = "#1565C0"   # CarMax blue (chart)
 ACCENT = "#FFD520"  # CarMax yellow
-GREEN = "#2E8540"
+GREEN = "#00E676"
 GREY = "#8A94A6"
-
+RED = "#FF5252"
 
 SHORT = {"Team deck base case": "Deck base", "Realistic (recommended)": "Realistic",
          "Conservative (stress test)": "Conservative", "Optimistic": "Optimistic"}
@@ -357,45 +362,198 @@ ENROLL_OPTS = [0.20, 0.30, 0.40, 0.50]
 
 
 def _set(key, value):
-    st.session_state[key] = float(value)
-    st.session_state[f"_{key}"] = float(value) * 100
+    """Queue a single-key override to be applied before widgets render."""
+    if "_pending_overrides" not in st.session_state:
+        st.session_state["_pending_overrides"] = {}
+    st.session_state["_pending_overrides"][key] = float(value)
 
 
-def on_scenario():
-    label = st.session_state.get("btn_scenario")
-    if label:
-        st.session_state["preset"] = {v: k for k, v in SHORT.items()}[label]
-        apply_preset()
-        for k in ("btn_lift", "btn_reward", "btn_enroll"):
-            st.session_state[k] = None
+def on_reset():
+    st.session_state["_scenario_sel"] = "Realistic"
+    st.session_state["preset"] = "Realistic (recommended)"
+    st.session_state["_pending_preset"] = "Realistic (recommended)"
+    st.session_state["_lift_sel"] = None
+    st.session_state["_reward_sel"] = None
+    st.session_state["_enroll_sel"] = None
 
 
-def on_quick(btn, key):
-    v = st.session_state.get(btn)
-    if v is not None:
-        _set(key, v)
+def _btn_row(label, options, state_key, fmt_func, on_select):
+    """Render a labeled row of solid toggle-buttons using st.button."""
+    st.markdown(f"<div class='ctrl-label'>{label}</div>", unsafe_allow_html=True)
+    cols = st.columns(len(options))
+    sel = st.session_state.get(state_key)
+    for col, opt in zip(cols, options):
+        display = fmt_func(opt)
+        is_sel = (sel == opt)
+        with col:
+            if st.button(display, key=f"_btw_{state_key}_{opt}", width="stretch"):
+                st.session_state[state_key] = opt
+                on_select(opt)
+                st.rerun()
+            key_cls = f"_btw_{state_key}_{opt}".replace(".", "_")
+            color = "#FFD520" if is_sel else "#1e3f7a"
+            text_color = "#0a1f44" if is_sel else "#ffffff"
+            border = "#FFD520" if is_sel else "#4a6aaa"
+            st.markdown(f"""
+            <style>
+            div[data-testid="stButton"][class*="{key_cls}"] button,
+            .st-key-_btw_{state_key.replace('.','_')}_{str(opt).replace('.','_')} button {{
+                background: {color} !important;
+                color: {text_color} !important;
+                border: 2px solid {border} !important;
+            }}
+            </style>""", unsafe_allow_html=True)
+
+
+_CTRL_THEMES = {
+    "scenario": {"bg": "#004D40", "border": "#00BFA5", "label": "Scenario"},
+    "lift":     {"bg": "#311B92", "border": "#7C4DFF", "label": "Repeat-rate lift"},
+    "reward":   {"bg": "#BF360C", "border": "#FF6E40", "label": "Avg reward"},
+    "enroll":   {"bg": "#1B5E20", "border": "#69F0AE", "label": "New-buyer enrollment"},
+}
+
+
+def _ctrl_section_css(section_key: str, btn_keys: list[str], sel_key: str, sel_val) -> str:
+    """Emit CSS for one control section: colored bg wrapper + per-button selected state."""
+    t = _CTRL_THEMES[section_key]
+    lines = [
+        f".ctrl-wrap-{section_key} {{ background:{t['bg']}; border-radius:10px; "
+        f"border:2px solid {t['border']}; padding:14px 16px; margin:0; }}",
+        f".ctrl-wrap-{section_key} .ctrl-label {{ color:#ffffff !important; text-align:center !important; }}",
+    ]
+    for bkey, opt in btn_keys:
+        is_sel = sel_val == opt
+        bg = "#FFD520" if is_sel else t["bg"]
+        tc = "#0a1f44" if is_sel else "#ffffff"
+        bd = "#FFD520" if is_sel else t["border"]
+        fw = "900" if is_sel else "700"
+        border_css = f"border:2px solid {bd}!important;" if is_sel else "border:none!important;box-shadow:none!important;"
+        lines.append(
+            f".st-key-{bkey} button {{background:{bg}!important;color:{tc}!important;"
+            f"{border_css}font-size:1.45rem!important;"
+            f"font-weight:{'700' if is_sel else '600'}!important;padding:12px 6px!important;"
+            f"border-radius:6px!important;min-height:54px!important;"
+            f"font-family:'Inter','Poppins',sans-serif!important;"
+            f"letter-spacing:0!important;}}"
+            f" .st-key-{bkey} button p, .st-key-{bkey} button div"
+            f" {{font-size:1.45rem!important;font-weight:{'700' if is_sel else '600'}!important;"
+            f"color:{tc}!important;font-family:'Segoe UI','Aptos','Calibri','Inter',sans-serif!important;"
+            f"letter-spacing:0!important;}}"
+        )
+    return "\n".join(lines)
 
 
 def demo_controls():
-    """One-click buttons for the live demo (no dropdowns)."""
-    with st.container(border=True):
-        c1, c3 = st.columns(2)
-        c2, c4 = st.columns(2)
-        with c1:
-            st.segmented_control("Scenario", list(SHORT.values()), key="btn_scenario",
-                                 on_change=on_scenario)
-        with c2:
-            st.segmented_control("Repeat-rate lift", LIFT_OPTS, key="btn_lift",
-                                 format_func=lambda x: f"+{x*100:.0f} pts",
-                                 on_change=on_quick, args=("btn_lift", "lift"))
-        with c3:
-            st.segmented_control("Avg reward", REWARD_OPTS, key="btn_reward",
-                                 format_func=lambda x: f"${x}",
-                                 on_change=on_quick, args=("btn_reward", "avg_reward"))
-        with c4:
-            st.segmented_control("New-buyer enrollment", ENROLL_OPTS, key="btn_enroll",
-                                 format_func=lambda x: f"{x:.0%}",
-                                 on_change=on_quick, args=("btn_enroll", "new_enroll"))
+    """Four themed control sections — each with its own background color."""
+    for k, default in [("_scenario_sel", "Realistic"), ("_lift_sel", None),
+                       ("_reward_sel", None), ("_enroll_sel", None)]:
+        if k not in st.session_state:
+            st.session_state[k] = default
+
+    scen_labels = list(SHORT.values())
+    sel_sc = st.session_state.get("_scenario_sel", "Realistic")
+    sel_lift = st.session_state.get("_lift_sel")
+    sel_rew = st.session_state.get("_reward_sel")
+    sel_enr = st.session_state.get("_enroll_sel")
+    sc_keys = [(f"sc_btn_{label.replace(' ', '_')}", label) for label in scen_labels]
+    lift_keys = [(f"lift_btn_{int(opt*1000)}", opt) for opt in LIFT_OPTS]
+    rew_keys = [(f"rew_btn_{opt}", opt) for opt in REWARD_OPTS]
+    enr_keys = [(f"enr_btn_{int(opt*100)}", opt) for opt in ENROLL_OPTS]
+    css = "\n".join([
+        _ctrl_section_css("scenario", sc_keys, "_scenario_sel", sel_sc),
+        _ctrl_section_css("lift", lift_keys, "_lift_sel", sel_lift),
+        _ctrl_section_css("reward", rew_keys, "_reward_sel", sel_rew),
+        _ctrl_section_css("enroll", enr_keys, "_enroll_sel", sel_enr),
+        ".st-key-reset_all_btn button{background:#C62828!important;color:#ffffff!important;"
+        "border:none!important;font-size:1.4rem!important;font-weight:900!important;"
+        "border-radius:8px!important;padding:12px 0!important;letter-spacing:.5px!important;}"
+    ])
+    st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+    container_css = """
+    .st-key-wrap_scenario { background:#004D40; border-radius:10px; border:2px solid #00BFA5; padding:14px; }
+    .st-key-wrap_lift { background:#311B92; border-radius:10px; border:2px solid #7C4DFF; padding:14px; }
+    .st-key-wrap_reward { background:#BF360C; border-radius:10px; border:2px solid #FF6E40; padding:14px; }
+    .st-key-wrap_enroll { background:#1B5E20; border-radius:10px; border:2px solid #69F0AE; padding:14px; }
+    """
+    st.markdown(f"<style>{container_css}</style>", unsafe_allow_html=True)
+    c_sc, c_lift, c_rew, c_enr = st.columns(4)
+    with c_sc:
+        with st.container(key="wrap_scenario"):
+            st.markdown("<div class='ctrl-label'>Scenario</div>", unsafe_allow_html=True)
+            # 2×2 grid so height matches the other sections
+            row1 = st.columns(2)
+            row2 = st.columns(2)
+            grids = [row1[0], row1[1], row2[0], row2[1]]
+            for grid_col, (bkey, label) in zip(grids, sc_keys):
+                with grid_col:
+                    if st.button(label, key=bkey, width="stretch"):
+                        preset_name = {v: k for k, v in SHORT.items()}[label]
+                        st.session_state["_scenario_sel"] = label
+                        st.session_state["preset"] = preset_name
+                        st.session_state["_pending_preset"] = preset_name
+                        for key in ("_lift_sel", "_reward_sel", "_enroll_sel"):
+                            st.session_state[key] = None
+                        st.rerun()
+    with c_lift:
+        with st.container(key="wrap_lift"):
+            st.markdown("<div class='ctrl-label'>Repeat-rate lift</div>", unsafe_allow_html=True)
+            cols = st.columns(len(lift_keys))
+            for col, (bkey, opt) in zip(cols, lift_keys):
+                with col:
+                    if st.button(f"+{opt*100:.0f}", key=bkey, width="stretch"):
+                        st.session_state["_lift_sel"] = opt
+                        _set("lift", opt)
+                        st.rerun()
+    with c_rew:
+        with st.container(key="wrap_reward"):
+            st.markdown("<div class='ctrl-label'>Average reward</div>", unsafe_allow_html=True)
+            cols = st.columns(len(rew_keys))
+            for col, (bkey, opt) in zip(cols, rew_keys):
+                with col:
+                    if st.button(f"${opt}", key=bkey, width="stretch"):
+                        st.session_state["_reward_sel"] = opt
+                        _set("avg_reward", opt)
+                        st.rerun()
+    with c_enr:
+        with st.container(key="wrap_enroll"):
+            st.markdown("<div class='ctrl-label'>New-buyer enrollment</div>", unsafe_allow_html=True)
+            cols = st.columns(len(enr_keys))
+            for col, (bkey, opt) in zip(cols, enr_keys):
+                with col:
+                    if st.button(f"{opt:.0%}", key=bkey, width="stretch"):
+                        st.session_state["_enroll_sel"] = opt
+                        _set("new_enroll", opt)
+                        st.rerun()
+    _, reset_col, _ = st.columns([3, 1, 3])
+    with reset_col:
+        if st.button("↺  Reset to default", key="reset_all_btn", width="stretch"):
+            on_reset()
+            st.rerun()
+
+
+def _year_banner(df: pd.DataFrame, sel_t: int | None):
+    """Show a compact selected-year highlight strip. Returns the selected row or None."""
+    if sel_t is None or sel_t <= 0:
+        return None
+    rows = df[df["t"] == sel_t]
+    if rows.empty:
+        return None
+    row = rows.iloc[0]
+    profit_color = "#4CAF50" if row["Program profit"] >= 0 else "#FF5252"
+    st.markdown(f"""
+    <div style='background:#132d50;border-left:4px solid #FFD520;border-radius:6px;
+                padding:10px 20px;margin-bottom:8px;display:flex;gap:32px;flex-wrap:wrap;align-items:center;'>
+      <span style='font-size:1.1rem;font-weight:900;color:#FFD520;'>&#9654; {row["Year"]}</span>
+      <span style='color:#90b4e0;font-size:0.85rem;font-weight:700;'>
+        Enrolled: <b style='color:#4DD0E1;font-size:1.1rem;'>{int(row["Enrolled owners"]):,}</b> &nbsp;|&nbsp;
+        Program profit: <b style='color:{profit_color};font-size:1.1rem;'>{m(row["Program profit"])}</b> &nbsp;|&nbsp;
+        Cost savings: <b style='color:#FFD520;font-size:1.1rem;'>{m(row["Total cost savings"])}</b> &nbsp;|&nbsp;
+        Total value: <b style='color:#4CAF50;font-size:1.1rem;'>{m(row["Total value"])}</b> &nbsp;|&nbsp;
+        Cumulative: <b style='color:#CE93D8;font-size:1.1rem;'>{m(row["Cumulative total value"])}</b>
+      </span>
+    </div>
+    """, unsafe_allow_html=True)
+    return row
 
 
 def main():
@@ -406,11 +564,30 @@ def main():
         st.session_state["btn_scenario"] = "Realistic"
         apply_preset()
 
+    if "selected_year_t" not in st.session_state:
+        st.session_state["selected_year_t"] = None
+    if "kpi_sel" not in st.session_state:
+        st.session_state["kpi_sel"] = None
+
+    # Apply any pending preset change BEFORE widgets are instantiated
+    if st.session_state.get("_pending_preset"):
+        st.session_state["preset"] = st.session_state["_pending_preset"]
+        apply_preset()
+        st.session_state["_pending_preset"] = None
+
+    # Apply any pending single-key overrides (lift, avg_reward, new_enroll etc.)
+    for k, v in st.session_state.pop("_pending_overrides", {}).items():
+        st.session_state[k] = v
+        st.session_state[f"_{k}"] = v * 100
+
+    # Logo in sidebar — clicking navigates home
+    st.logo("logo.svg", link="http://localhost:8501", size="large")
+
     # ---------------- Sidebar ----------------
     with st.sidebar:
         st.markdown("## MyGarage inputs")
-        st.caption(f"Scenario: **{st.session_state['preset']}**. Pick scenarios with the "
-                   "buttons on the main page; fine-tune any input below.")
+        st.markdown(f"Scenario: **{st.session_state['preset']}**. Pick scenarios with the "
+                    "buttons on the main page; fine-tune any input below.")
 
         with st.expander("CarMax baseline (FY2026)", expanded=False):
             num("Retail used units / year", "retail_units", 1000.0)
@@ -419,7 +596,7 @@ def main():
             num("EPP revenue per car ($)", "epp_per_car", 25.0)
             num("Advertising spend ($)", "advertising", 1e6)
 
-        with st.expander("Adoption", expanded=True):
+        with st.expander("Adoption", expanded=False):
             num("Recent owners eligible at launch", "recent_owners", 10000.0,
                 help="CarMax buyers from FY2024-26 (~2.34M).")
             pct("Recent owners who enroll", "existing_enroll", 60.0)
@@ -429,7 +606,7 @@ def main():
             pct("Enrolled owners lost per year", "attrition", 50.0,
                 help="Owners who sell the car elsewhere or stop using the app.")
 
-        with st.expander("Repeat purchase & rewards", expanded=True):
+        with st.expander("Repeat purchase & rewards", expanded=False):
             num("Ownership cycle (years)", "cycle_years", 1.0, minv=1.0)
             pct("Baseline repeat rate (per cycle)", "base_repeat", 60.0)
             pct("Repeat-rate lift from MyGarage (pts)", "lift", 15.0, 0.5)
@@ -449,7 +626,7 @@ def main():
             num("One-time build ($)", "build_cost", 250000.0)
             num("Fixed run cost / year ($)", "fixed_cost", 100000.0)
 
-        with st.expander("Cost-savings levers", expanded=True):
+        with st.expander("Cost-savings levers", expanded=False):
             num("Acquisition cost avoided per extra repeat buyer (x avg ad $/car)",
                 "acq_mult", 0.05, "%.2f",
                 help="1.0 = the ~$362 CarMax spends on advertising per retail car.")
@@ -494,26 +671,448 @@ def main():
     be_prog = breakeven_lift(p, False)
     be_tot = breakeven_lift(p, True)
 
-    st.markdown(
-        f"<h1 style='color:{BRAND};margin-bottom:0'>MyGarage by CarMax · Value Calculator</h1>"
-        f"<p style='color:{GREY};margin-top:4px'>Scenario: <b>{st.session_state['preset']}</b>"
-        f" (edited inputs apply on top). $ figures are pre-tax unless noted.</p>",
-        unsafe_allow_html=True,
-    )
+    # ── Presentation CSS ──────────────────────────────────────────────────────
+    st.markdown("""
+    <style>
+    /* ── Import Inter + Poppins from Google Fonts ── */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&display=swap');
+
+    /* ── Apply Inter/Poppins to all text — never touch icon font classes ── */
+    body, h1, h2, h3, h4, h5, h6,
+    p, label, input, textarea, select,
+    [data-testid="stMarkdownContainer"] *,
+    [data-testid="stText"],
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricLabel"],
+    [data-testid="stMetricDelta"],
+    [data-testid="stNumberInput"] input,
+    [data-testid="stSlider"] p,
+    [data-testid="stCaption"],
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] input,
+    [data-testid="stSidebar"] h2 {
+        font-family: "Inter", "Poppins", sans-serif !important;
+    }
+    /* Buttons: only the text node inside, not the icon span */
+    [data-testid="stButton"] button p,
+    [data-testid="stButton"] button > div {
+        font-family: "Inter", "Poppins", sans-serif !important;
+    }
+
+    /* ── Remove top dead space ── */
+    header[data-testid="stHeader"] { display: none !important; }
+    .stMainBlockContainer { padding-top: 0 !important; padding-left: 1.5rem !important; padding-right: 1.5rem !important; }
+    /* Tight vertical rhythm — everything flows as one page */
+    .stVerticalBlock { gap: 0.35rem !important; }
+
+    /* ═══════════════════════════════════════════════════
+       HERO BANNER — full-width flush header, no rounding
+    ═══════════════════════════════════════════════════ */
+    .mg-hero {
+        background: #0d3880;
+        border-radius: 0;
+        padding: 18px 32px 14px 32px;
+        margin: 0 -1.5rem 0 -1.5rem;
+        border-bottom: 3px solid #FFD520;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+    .mg-hero-left { display: flex; align-items: center; gap: 20px; }
+    .mg-hero-logo { flex-shrink: 0; cursor: pointer; }
+    .mg-hero-logo a { display: block; line-height: 0; }
+    .mg-hero-logo svg { transition: opacity 0.15s; }
+    .mg-hero-logo a:hover svg { opacity: 0.8; }
+    .mg-hero-text h1 {
+        font-size: 2.4rem; font-weight: 900; color: #FFD520;
+        margin: 0 0 2px 0; letter-spacing: -0.5px;
+    }
+    .mg-hero-text .sub { font-size: 1.15rem; color: #e0eeff; font-weight: 500; }
+    .mg-hero-text .team-line {
+        font-size: 1.1rem; color: #ffffff; margin-top: 4px; font-weight: 700;
+    }
+    .mg-hero-scenario { text-align: right; flex-shrink: 0; }
+    .mg-hero-scenario .sc-label {
+        font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1.5px;
+        color: #e0eeff; font-weight: 700; margin-bottom: 6px;
+    }
+    .mg-hero-scenario .sc-badge {
+        display: inline-block; background: #FFD520; color: #051e45;
+        font-weight: 900; font-size: 1.3rem; border-radius: 6px; padding: 8px 24px;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       CONTROLS — section labels
+    ═══════════════════════════════════════════════════ */
+    .ctrl-label {
+        font-family: "Segoe UI", "Aptos", "Calibri", "Inter", sans-serif !important;
+        font-size: 1.25rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 8px !important;
+        letter-spacing: 0 !important;
+        color: #ffffff !important;
+        text-align: center !important;
+    }
+    [data-testid="stButton"] button {
+        font-family: "Segoe UI", "Aptos", "Calibri", "Inter", sans-serif !important;
+        font-size: 1.45rem !important;
+        font-weight: 600 !important;
+        padding: 12px 8px !important;
+        border-radius: 6px !important;
+        min-height: 52px !important;
+        border: none !important;
+        box-shadow: none !important;
+        letter-spacing: 0 !important;
+    }
+    [data-testid="stButton"] button p,
+    [data-testid="stButton"] button div {
+        font-family: "Segoe UI", "Aptos", "Calibri", "Inter", sans-serif !important;
+        font-size: 1.45rem !important;
+        font-weight: 600 !important;
+        line-height: 1.2 !important;
+        letter-spacing: 0 !important;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       ACTIVE INPUTS BAR
+    ═══════════════════════════════════════════════════ */
+    .inputs-bar {
+        background: #091e3a;
+        border-top: 2px solid rgba(255,213,32,0.35);
+        border-bottom: 2px solid rgba(255,213,32,0.35);
+        border-left: none; border-right: none;
+        border-radius: 0;
+        padding: 12px 8px;
+        display: flex;
+        gap: 0;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: space-around;
+        margin: 0 -1.5rem;
+    }
+    .inputs-bar .ib-item {
+        display: flex; flex-direction: column; align-items: center;
+        padding: 0 20px; border-right: 1px solid rgba(255,213,32,0.2);
+    }
+    .inputs-bar .ib-item:last-child { border-right: none; }
+    .inputs-bar .ib-val  { font-size: 1.8rem; font-weight: 900; color: #FFD520; line-height: 1.1; }
+    .inputs-bar .ib-lbl  {
+        font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;
+        color: #90b4e0; font-weight: 700; margin-top: 2px;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       KPI ROW — full-width band, no card border
+    ═══════════════════════════════════════════════════ */
+    .kpi-row {
+        display: flex;
+        margin: 0 -1.5rem;
+        background: #071528;
+        border-top: 3px solid #FFD520;
+        border-bottom: 3px solid #FFD520;
+        border-left: none; border-right: none;
+        border-radius: 0;
+        overflow: hidden;
+    }
+    .kpi-item {
+        flex: 1;
+        text-align: center;
+        padding: 18px 10px 14px 10px;
+        border-left: 1px solid rgba(255,213,32,0.4);
+    }
+    .kpi-item:first-child { border-left: none; }
+    .kpi-label {
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        font-weight: 700;
+        color: #e0eeff;
+        margin-bottom: 6px;
+    }
+    .kpi-value {
+        font-size: 2.8rem;
+        font-weight: 900;
+        line-height: 1;
+        margin-bottom: 4px;
+    }
+    .kpi-delta { font-size: 0.88rem; color: #b0c8f0; font-weight: 600; }
+    .kv-green  { color: #4CAF50; }
+    .kv-orange { color: #FF9800; }
+    .kv-blue   { color: #64B5F6; }
+    .kv-purple { color: #CE93D8; }
+    .kv-teal   { color: #4DD0E1; }
+
+    /* ═══════════════════════════════════════════════════
+       CALLOUT STRIP
+    ═══════════════════════════════════════════════════ */
+    .callout-strip {
+        background: #091e3a;
+        border-top: 1px solid rgba(100,140,200,0.3);
+        border-bottom: 1px solid rgba(100,140,200,0.3);
+        border-left: none; border-right: none;
+        border-radius: 0;
+        padding: 12px 8px;
+        display: flex;
+        gap: 0;
+        flex-wrap: nowrap;
+        margin: 0 -1.5rem 0 -1.5rem;
+        align-items: center;
+        justify-content: space-around;
+    }
+    .callout-strip .co-item {
+        display: flex; flex-direction: column; align-items: center;
+        padding: 0 16px; border-right: 1px solid rgba(100,140,200,0.25);
+    }
+    .callout-strip .co-item:last-child { border-right: none; }
+    .callout-strip .co-num  { font-size: 1.9rem; font-weight: 900; color: #FFD520; line-height: 1.1; }
+    .callout-strip .co-txt  { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.8px; color: #90b4e0; font-weight: 700; margin-top: 2px; text-align: center; }
+
+    /* ═══════════════════════════════════════════════════
+       PITCH BOX + SGA BAR
+    ═══════════════════════════════════════════════════ */
+    .pitch-box {
+        background: #0d2a52;
+        border-left: 5px solid #FFD520;
+        border-radius: 10px;
+        padding: 24px 26px 20px 26px;
+        margin-bottom: 12px;
+        height: 100%;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .pitch-box h3 {
+        color: #FFD520; font-size: 1.3rem; font-weight: 800; margin: 0 0 16px 0;
+    }
+    .pitch-box ul { margin: 0; padding-left: 20px; flex: 1; }
+    .pitch-box li {
+        color: #e0eeff; font-size: 1.15rem; margin-bottom: 14px; line-height: 1.7;
+    }
+    .pitch-box li b { color: #FFD520; }
+    .sga-bar {
+        background: #0d2a52;
+        border: 1px solid #FFD520;
+        border-radius: 8px;
+        padding: 14px 20px;
+        color: #e0eeff;
+        font-size: 1.1rem;
+        line-height: 1.6;
+    }
+    .sga-bar b { color: #FFD520; font-size: 1.2rem; }
+
+    /* ═══════════════════════════════════════════════════
+       SIDEBAR + LOGO
+    ═══════════════════════════════════════════════════ */
+    /* Make the logo prominent — full-width navy block at top of sidebar */
+    [data-testid="stSidebarHeader"] {
+        background: #0d3880 !important;
+        padding: 12px 16px !important;
+        border-bottom: 3px solid #FFD520 !important;
+    }
+    [data-testid="stSidebarHeader"] img {
+        width: 100% !important;
+        max-width: 220px !important;
+        height: auto !important;
+    }
+    /* Remove all borders/outlines from sidebar expanders and inputs */
+    [data-testid="stSidebar"] details,
+    [data-testid="stSidebar"] details summary,
+    [data-testid="stSidebar"] [data-testid="stExpander"],
+    [data-testid="stSidebar"] [data-testid="stExpanderDetails"],
+    [data-testid="stSidebar"] [data-testid="stNumberInput"] div,
+    [data-testid="stSidebar"] [data-testid="stNumberInput"] input,
+    [data-testid="stSidebar"] [data-testid="stSlider"],
+    [data-testid="stSidebar"] [data-baseweb="input"] {
+        border: none !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+    /* Subtle separator line between expanders instead of full box border */
+    [data-testid="stSidebar"] details {
+        border-bottom: 1px solid rgba(100,140,200,0.15) !important;
+        border-radius: 0 !important;
+    }
+
+    [data-testid="stSidebar"] { font-size: 1.2rem !important; }
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] label {
+        font-size: 1.2rem !important;
+        font-weight: 600 !important;
+        line-height: 1.6 !important;
+    }
+    [data-testid="stSidebar"] input { font-size: 1.2rem !important; font-weight: 700 !important; }
+    [data-testid="stSidebar"] summary p,
+    [data-testid="stSidebar"] summary span {
+        font-size: 1.25rem !important; font-weight: 800 !important;
+    }
+    [data-testid="stSidebar"] h2 { font-size: 1.8rem !important; font-weight: 900 !important; }
+    /* More breathing room between sidebar widgets */
+    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 1rem !important; }
+    [data-testid="stSidebar"] [data-testid="stNumberInput"] { margin-bottom: 0.5rem !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ── Hero banner ───────────────────────────────────────────────────────────
+    st.markdown(f"""
+    <div class='mg-hero'>
+        <div class='mg-hero-left'>
+            <div class='mg-hero-logo'>
+                <a href="http://localhost:8501" title="Back to home">
+                <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="6" y="28" width="60" height="38" rx="3" fill="#FFD520"/>
+                  <rect x="10" y="32" width="52" height="30" rx="2" fill="#0d3880"/>
+                  <line x1="10" y1="42" x2="62" y2="42" stroke="#FFD520" stroke-width="2"/>
+                  <line x1="10" y1="52" x2="62" y2="52" stroke="#FFD520" stroke-width="2"/>
+                  <polygon points="2,30 36,8 70,30" fill="#FFD520"/>
+                  <polygon points="6,30 36,12 66,30" fill="#1a5fa8"/>
+                  <rect x="17" y="55" width="38" height="7" rx="3" fill="#FFD520"/>
+                  <rect x="22" y="50" width="28" height="7" rx="3" fill="#FFD520"/>
+                  <circle cx="24" cy="62" r="3" fill="#0d3880"/>
+                  <circle cx="48" cy="62" r="3" fill="#0d3880"/>
+                </svg>
+                </a>
+            </div>
+            <div class='mg-hero-text'>
+                <h1>MyGarage by CarMax</h1>
+                <div class='sub'>5-Year Revenue &amp; Profitability Calculator</div>
+                <div class='team-line'>Team 5 &mdash; Anthony &nbsp;|&nbsp; Eric &nbsp;|&nbsp; Evaslie &nbsp;|&nbsp; Josh &nbsp;|&nbsp; Kip &nbsp;|&nbsp; Mike &nbsp;&middot;&nbsp; UVA McIntire MSIT &nbsp;&middot;&nbsp; Prof. Stefano Grazioli, Ph.D.</div>
+            </div>
+        </div>
+        <div class='mg-hero-scenario'>
+            <div class='sc-label'>Active Scenario</div>
+            <div class='sc-badge'>{st.session_state['preset']}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     demo_controls()
-    c = st.columns(5)
-    c[0].metric("5-yr total value", m(tot5), f"{m(sav5)} from cost savings")
-    c[1].metric("5-yr ROI on $%.0fM" % (p.build_cost / 1e6), f"{roi_tot:,.0%}",
-                f"{roi_prog:,.0%} without savings", delta_color="off")
-    c[2].metric("Payback", payback_year(df["Cumulative total value"], df),
-                f"program only: {payback_year(df['Cumulative program profit'], df)}",
-                delta_color="off")
-    c[3].metric("NPV @ %.0f%%" % (p.discount_rate * 100), m(npv_tot))
-    c[4].metric("Yr-5 net earnings / EPS", m(ni_y5), f"+${eps_y5:.2f} per share")
 
-    tabs = st.tabs(["Overview", "Assumptions in use", "Cost savings", "Profitability", "Customer experience",
-                    "Sensitivity", "Year-by-year table", "Sources & method"])
+    # ── Active-inputs annotation bar ─────────────────────────────────────────
+    st.markdown(f"""
+    <div class='inputs-bar'>
+        <div class='ib-item'><span class='ib-val'>{p.new_enroll:.0%}</span><span class='ib-lbl'>New-buyer enrollment</span></div>
+        <div class='ib-item'><span class='ib-val'>+{p.lift*100:.0f} pts</span><span class='ib-lbl'>Repeat-rate lift</span></div>
+        <div class='ib-item'><span class='ib-val'>${p.avg_reward:,.0f}</span><span class='ib-lbl'>Avg reward</span></div>
+        <div class='ib-item'><span class='ib-val'>{p.existing_enroll:.0%}</span><span class='ib-lbl'>Existing owners enrolled</span></div>
+        <div class='ib-item'><span class='ib-val'>${p.build_cost/1e6:.0f}M</span><span class='ib-lbl'>Build cost</span></div>
+        <div class='ib-item'><span class='ib-val'>{p.year1_ramp:.0%}</span><span class='ib-lbl'>Yr-1 ramp</span></div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── KPI row — interactive ─────────────────────────────────────────────────
+    pb = payback_year(df["Cumulative total value"], df)
+    if "kpi_sel" not in st.session_state:
+        st.session_state["kpi_sel"] = None
+
+    KPI_DEFS = [
+        ("total",   "5-Year Total Value",   m(tot5),          f"{m(sav5)} from cost savings", "kv-green"),
+        ("roi",     "5-Year ROI",           f"{roi_tot:,.0%}", f"on ${p.build_cost/1e6:.0f}M build", "kv-orange"),
+        ("payback", "Payback Period",        pb,               "incl. cost savings",            "kv-blue"),
+        ("npv",     "NPV",                  m(npv_tot),        f"@ {p.discount_rate:.0%} discount","kv-purple"),
+        ("eps",     "Yr-5 Earnings Lift",   m(ni_y5),          f"+${eps_y5:.2f}/share EPS",    "kv-teal"),
+    ]
+
+    # KPI row: HTML display + small toggle button per tile
+    COLOR_MAP = {"kv-green": "#4CAF50", "kv-orange": "#FF9800",
+                 "kv-blue": "#64B5F6", "kv-purple": "#CE93D8", "kv-teal": "#4DD0E1"}
+
+    kpi_btn_css = ""
+    for kid, *_ in KPI_DEFS:
+        is_sel = st.session_state["kpi_sel"] == kid
+        bg = "#1a3d6e" if is_sel else "#071528"
+        kpi_btn_css += (
+            f".st-key-kpi_{kid} button{{background:{bg}!important;border:none!important;"
+            f"border-top:{'3px solid #FFD520' if is_sel else '3px solid transparent'}!important;"
+            f"border-radius:0!important;width:100%!important;padding:4px 0!important;"
+            f"font-size:0.82rem!important;font-weight:600!important;color:#90b4e0!important;}}"
+            f".st-key-kpi_{kid} button p,.st-key-kpi_{kid} button div"
+            f"{{font-size:0.82rem!important;color:#90b4e0!important;}}"
+        )
+    st.markdown(f"<style>{kpi_btn_css}</style>", unsafe_allow_html=True)
+
+    k_cols = st.columns(5)
+    for col, (kid, label, value, delta, color_cls) in zip(k_cols, KPI_DEFS):
+        is_sel = st.session_state["kpi_sel"] == kid
+        val_color = COLOR_MAP[color_cls]
+        tile_bg = "#1a3d6e" if is_sel else "#071528"
+        top_border = "border-top:3px solid #FFD520;" if is_sel else "border-top:3px solid transparent;"
+        with col:
+            st.markdown(f"""
+            <div style='background:{tile_bg};{top_border}text-align:center;
+                        padding:16px 8px 4px 8px;border-left:1px solid rgba(255,213,32,0.15);'>
+              <div style='font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;
+                          font-weight:700;color:#90b4e0;margin-bottom:6px;'>{label}</div>
+              <div style='font-size:2.5rem;font-weight:900;line-height:1;color:{val_color};
+                          font-family:"Inter","Poppins",sans-serif;'>{value}</div>
+              <div style='font-size:0.82rem;color:#7090b8;font-weight:600;
+                          margin-top:6px;padding-bottom:8px;'>{delta}</div>
+            </div>""", unsafe_allow_html=True)
+            toggle_label = "▲ collapse" if is_sel else "▼ details"
+            if st.button(toggle_label, key=f"kpi_{kid}", width="stretch"):
+                st.session_state["kpi_sel"] = None if is_sel else kid
+                st.rerun()
+
+    # KPI detail expansion strip
+    sel = st.session_state["kpi_sel"]
+    if sel == "total":
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Program profit (5yr)", m(prog5), help="Revenue minus variable costs, fixed costs, and build")
+        c2.metric("Cost savings (5yr)", m(sav5), help="Marketing, recon, appraisal, care, early detection")
+        c3.metric("Total value (5yr)", m(tot5), help="Program profit + cost savings")
+        scols = [c for c in df.columns if c.startswith("Savings:")]
+        st.bar_chart(yrs.set_index("Year")[scols].rename(columns=lambda s: s.replace("Savings: ", "")))
+    elif sel == "roi":
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Build cost", m(p.build_cost))
+        c2.metric("5-yr return", m(tot5))
+        c3.metric("ROI (total)", f"{roi_tot:.0%}")
+        c4.metric("ROI (program only)", f"{roi_prog:.0%}")
+        st.caption("ROI = 5-year value after build ÷ build cost. Total ROI includes cost savings; program-only does not.")
+    elif sel == "payback":
+        cum = df[["Year", "Cumulative total value"]].copy()
+        cum["Cumulative total value"] = cum["Cumulative total value"] / 1e6
+        st.line_chart(cum.set_index("Year"), y="Cumulative total value", color="#00E676")
+        st.caption(f"Cumulative total value turns positive at **{pb}** — that is the payback year.")
+    elif sel == "npv":
+        disc_vals = [v / (1 + p.discount_rate) ** i for i, v in enumerate(df["Total value"].tolist())]
+        npv_df = pd.DataFrame({"Year": df["Year"], "Discounted value ($M)": [v / 1e6 for v in disc_vals]})
+        st.bar_chart(npv_df.set_index("Year"), color="#CE93D8")
+        st.caption(f"Each year's value discounted at {p.discount_rate:.0%}/yr. Sum = {m(npv_tot)} NPV.")
+    elif sel == "eps":
+        y5r = yrs.iloc[-1]
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Yr-5 total value", m(y5r["Total value"]))
+        c2.metric("After tax & depreciation", m(ni_y5))
+        c3.metric("EPS lift", f"+${eps_y5:.3f}")
+        st.caption(f"Depreciation = build ÷ 5 = {m(p.build_cost/5)}/yr. Tax rate {p.tax_rate:.0%}. "
+                   f"Diluted shares: {SHARES_OUTSTANDING_M:.1f}M.")
+
+    # ── Callout strip ─────────────────────────────────────────────────────────
+    sga_like_y5 = yrs[["Savings: marketing (new)", "Savings: marketing (owned channel)",
+                        "Savings: customer care"]].iloc[-1].sum()
+    clv0, clv1 = clv(p, False), clv(p, True)
+    enrolled_y5 = int(yrs["Enrolled owners"].iloc[-1])
+    st.markdown(f"""
+    <div class='callout-strip'>
+        <div class='co-item'><span class='co-num'>{enrolled_y5:,}</span>
+            <span class='co-txt'>enrolled owners by Yr 5</span></div>
+        <div class='co-item'><span class='co-num'>${clv1:,.0f}</span>
+            <span class='co-txt'>lifetime value per buyer</span></div>
+        <div class='co-item'><span class='co-num'>{p.lift*100:.0f} pts</span>
+            <span class='co-txt'>repeat-rate lift</span></div>
+        <div class='co-item'><span class='co-num'>{sga_like_y5/SGA_TARGET:.0%}</span>
+            <span class='co-txt'>of CarMax $200M SG&amp;A target met (Yr 5)</span></div>
+        <div class='co-item'><span class='co-num'>{margin_tot:.1%}</span>
+            <span class='co-txt'>margin incl. savings</span></div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    tabs = st.tabs(["Overview", "Assumptions in use", "Cost savings", "Profitability",
+                    "Customer experience", "Sensitivity", "Year-by-year table", "Sources & method"])
 
     # ---------------- Overview ----------------
     with tabs[0]:
@@ -521,35 +1120,128 @@ def main():
         with left:
             fig = go.Figure()
             fig.add_bar(x=df["Year"], y=df["Program profit"] / 1e6, name="Program profit",
-                        marker_color=BRAND)
+                        marker_color="#2979FF",
+                        text=[f"${v/1e6:+.1f}M" for v in df["Program profit"]],
+                        textposition="outside", textfont=dict(color="#90b8ff", size=15, family="Arial Black"))
             fig.add_bar(x=df["Year"], y=df["Total cost savings"] / 1e6, name="Cost savings",
-                        marker_color=ACCENT)
-            fig.add_scatter(x=df["Year"], y=df["Cumulative total value"] / 1e6,
+                        marker_color=ACCENT,
+                        text=[f"${v/1e6:.1f}M" if v > 0 else "" for v in df["Total cost savings"]],
+                        textposition="outside", textfont=dict(color="#FFD520", size=15, family="Arial Black"))
+            cum_vals = df["Cumulative total value"] / 1e6
+            fig.add_scatter(x=df["Year"], y=cum_vals,
                             name="Cumulative value", mode="lines+markers",
-                            line=dict(color=GREEN, width=3))
-            fig.update_layout(barmode="relative", title="Annual value by source ($M)",
-                              height=420, legend=dict(orientation="h", y=-0.15),
-                              margin=dict(t=50, l=10, r=10))
-            st.plotly_chart(fig, use_container_width=True)
-        with right:
-            st.markdown("#### What the board should hear")
-            st.markdown(
-                f"- MyGarage earns **{m(prog5)}** in program profit over five years after the "
-                f"**{m(p.build_cost)}** build.\n"
-                f"- The design also **saves {m(sav5)}** in costs CarMax already pays: "
-                f"marketing, reconditioning, appraisal risk, customer care and warranty goodwill.\n"
-                f"- Together: **{m(tot5)}**, a **{roi_tot:,.0%}** ROI and a "
-                f"**{margin_tot:.1%}** margin on MyGarage revenue "
-                f"(vs {margin_prog:.1%} on program profit alone).\n"
-                f"- Break-even repeat lift: **{be_tot*100:.1f} pts** with savings"
-                + (f", {be_prog*100:.1f} pts without" if be_prog is not None else "")
-                + f". We assume {p.lift*100:.1f}."
-                if be_tot is not None else "- Not profitable within the tested lift range."
+                            line=dict(color=GREEN, width=4),
+                            marker=dict(size=10, color=GREEN))
+            # Annotate each cumulative point — skip Yr 0 (always -$8M build)
+            for i, (yr, v) in enumerate(zip(df["Year"], cum_vals)):
+                if i == 0:
+                    continue
+                fig.add_annotation(
+                    x=yr, y=v,
+                    text=f"<b>${v:.1f}M</b>",
+                    showarrow=False,
+                    yshift=18,
+                    font=dict(color=GREEN, size=14, family="Arial Black"),
+                    bgcolor="rgba(4,21,45,0.75)",
+                    borderpad=3,
+                )
+            # Clean up x-axis labels to just show year number
+            x_labels = [str(p.start_year + t) for t in range(6)]
+            fig.update_layout(
+                barmode="relative", title="<b>Annual value by source ($M)</b>",
+                title_font=dict(size=20, color="#FFD520"),
+                height=520,
+                legend=dict(orientation="h", y=-0.12, font=dict(size=15),
+                            bgcolor="rgba(0,0,0,0)", bordercolor="rgba(0,0,0,0)"),
+                margin=dict(t=60, l=10, r=10, b=60),
+                paper_bgcolor="#04152D", plot_bgcolor="#0a2444",
+                font=dict(color="#d0e4ff", size=14),
+                xaxis=dict(gridcolor="rgba(255,255,255,0.07)",
+                           tickfont=dict(size=17, family="Inter, Poppins, sans-serif"),
+                           tickvals=df["Year"].tolist(), ticktext=x_labels),
+                yaxis=dict(gridcolor="rgba(255,255,255,0.07)",
+                           tickfont=dict(size=14, family="Inter, Poppins, sans-serif")),
             )
+            sel_event = st.plotly_chart(fig, alt="Annual value waterfall chart",
+                                        on_select="rerun", selection_mode="points",
+                                        key="overview_chart")
+            # Capture clicked year from bar selection
+            pts = (sel_event.selection.get("points") or []) if sel_event and sel_event.selection else []
+            if pts:
+                clicked_x = pts[0].get("x")
+                if clicked_x:
+                    # Map "2027 (Yr 1)" format OR plain "2027" back to t index
+                    clicked_t = next((row["t"] for _, row in df.iterrows() if row["Year"] == clicked_x
+                                      or str(p.start_year + int(row["t"])) == str(clicked_x)), None)
+                    if clicked_t is not None:
+                        prev = st.session_state.get("selected_year_t")
+                        st.session_state["selected_year_t"] = None if prev == clicked_t else clicked_t
+                        st.rerun()
+        with right:
+            be_txt = (f"Break-even lift: <b>{be_tot*100:.1f} pts</b> with savings"
+                      + (f", {be_prog*100:.1f} pts without" if be_prog is not None else "")
+                      + f". We assume {p.lift*100:.1f} pts."
+                      if be_tot is not None
+                      else "Not profitable within tested lift range.")
             sga_like = yrs[["Savings: marketing (new)", "Savings: marketing (owned channel)",
                             "Savings: customer care"]].iloc[-1].sum()
-            st.info(f"By Year 5, MyGarage's SG&A-type savings ({m(sga_like)}/yr) equal "
-                    f"**{sga_like / SGA_TARGET:.1%}** of CarMax's $200M SG&A savings target.")
+            st.markdown(f"""
+            <div class='pitch-box'>
+                <h3>&#128200; What the board should hear</h3>
+                <ul>
+                <li>Program earns <b>{m(prog5)}</b> over 5 yrs on a <b>{m(p.build_cost)}</b> build.</li>
+                <li>Design saves <b>{m(sav5)}</b> in costs CarMax already pays &mdash;
+                    marketing, recon, appraisal, care &amp; warranty.</li>
+                <li>Together: <b>{m(tot5)}</b> &middot; <b>{roi_tot:,.0%}</b> ROI &middot;
+                    <b>{margin_tot:.1%}</b> margin (vs {margin_prog:.1%} program-only).</li>
+                <li>{be_txt}</li>
+                </ul>
+            </div>
+            <div class='sga-bar'>
+                &#128200; By Yr 5 SG&amp;A-type savings
+                <b>({m(sga_like)}/yr)</b> = <b>{sga_like/SGA_TARGET:.1%}</b>
+                of CarMax's $200M savings target.
+            </div>
+            """, unsafe_allow_html=True)
+
+        # ── Selected-year detail strip (shown when user clicks a bar) ────────
+        sel_t = st.session_state.get("selected_year_t")
+        if sel_t is not None and sel_t > 0:
+            row = df[df["t"] == sel_t].iloc[0]
+            yr_label = row["Year"]
+            scols = [c for c in df.columns if c.startswith("Savings:")]
+            st.markdown(f"""
+            <div style='background:#0d2a52;border-top:3px solid #FFD520;border-bottom:3px solid #FFD520;
+                        padding:14px 24px;margin:0 -1.5rem;display:flex;gap:0;flex-wrap:nowrap;
+                        justify-content:space-around;align-items:center;'>
+              <div style='text-align:center;padding:0 16px;border-right:1px solid rgba(255,213,32,0.3)'>
+                <div style='font-size:0.78rem;text-transform:uppercase;letter-spacing:1px;color:#90b4e0;font-weight:700;'>Year</div>
+                <div style='font-size:1.8rem;font-weight:900;color:#FFD520;'>{yr_label}</div>
+              </div>
+              <div style='text-align:center;padding:0 16px;border-right:1px solid rgba(255,213,32,0.3)'>
+                <div style='font-size:0.78rem;text-transform:uppercase;letter-spacing:1px;color:#90b4e0;font-weight:700;'>Enrolled Owners</div>
+                <div style='font-size:1.8rem;font-weight:900;color:#4DD0E1;'>{int(row["Enrolled owners"]):,}</div>
+              </div>
+              <div style='text-align:center;padding:0 16px;border-right:1px solid rgba(255,213,32,0.3)'>
+                <div style='font-size:0.78rem;text-transform:uppercase;letter-spacing:1px;color:#90b4e0;font-weight:700;'>Program Profit</div>
+                <div style='font-size:1.8rem;font-weight:900;color:#{"4CAF50" if row["Program profit"]>=0 else "FF5252"};'>{m(row["Program profit"])}</div>
+              </div>
+              <div style='text-align:center;padding:0 16px;border-right:1px solid rgba(255,213,32,0.3)'>
+                <div style='font-size:0.78rem;text-transform:uppercase;letter-spacing:1px;color:#90b4e0;font-weight:700;'>Cost Savings</div>
+                <div style='font-size:1.8rem;font-weight:900;color:#FFD520;'>{m(row["Total cost savings"])}</div>
+              </div>
+              <div style='text-align:center;padding:0 16px;border-right:1px solid rgba(255,213,32,0.3)'>
+                <div style='font-size:0.78rem;text-transform:uppercase;letter-spacing:1px;color:#90b4e0;font-weight:700;'>Total Value</div>
+                <div style='font-size:1.8rem;font-weight:900;color:#4CAF50;'>{m(row["Total value"])}</div>
+              </div>
+              <div style='text-align:center;padding:0 16px;'>
+                <div style='font-size:0.78rem;text-transform:uppercase;letter-spacing:1px;color:#90b4e0;font-weight:700;'>Cumulative</div>
+                <div style='font-size:1.8rem;font-weight:900;color:#CE93D8;'>{m(row["Cumulative total value"])}</div>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+        elif sel_t == 0:
+            st.info("Year 0 is the build year — no revenue yet. Build cost: " + m(p.build_cost))
 
     # ---------------- Assumptions ----------------
     with tabs[1]:
@@ -560,13 +1252,14 @@ def main():
             with (g1 if i % 2 == 0 else g2):
                 st.markdown(f"**{title}**")
                 st.dataframe(assumptions_table(p, st.session_state["preset"], keys),
-                             hide_index=True, use_container_width=True)
+                             hide_index=True, width="stretch")
         st.caption("Key formulas: extra repeat cars = enrolled owners × lift ÷ cycle years · "
                    "rewards paid on every repeat purchase by an enrolled owner · "
                    "ROI = 5-yr value after build ÷ build cost · CAF finance income not counted.")
 
     # ---------------- Cost savings ----------------
     with tabs[2]:
+        _year_banner(df, st.session_state.get("selected_year_t"))
         scols = [c_ for c_ in df.columns if c_.startswith("Savings:")]
         totals = yrs[scols].sum().sort_values()
         a, b = st.columns([3, 2])
@@ -574,10 +1267,18 @@ def main():
             fig = go.Figure(go.Bar(
                 x=totals.values / 1e6, y=[s.replace("Savings: ", "").capitalize() for s in totals.index],
                 orientation="h", marker_color=ACCENT,
-                text=[m(v) for v in totals.values], textposition="outside"))
-            fig.update_layout(title="Five-year cost savings by lever ($M)", height=400,
-                              margin=dict(t=50, l=10, r=40))
-            st.plotly_chart(fig, use_container_width=True)
+                text=[m(v) for v in totals.values], textposition="outside",
+                textfont=dict(color="#d0e4ff", size=16)))
+            fig.update_layout(
+                title="<b>Five-year cost savings by lever ($M)</b>",
+                title_font=dict(size=21, color="#FFD520"),
+                height=400, margin=dict(t=50, l=10, r=80),
+                paper_bgcolor="#04152D", plot_bgcolor="#0a2444",
+                font=dict(color="#d0e4ff", size=16),
+                xaxis=dict(gridcolor="rgba(255,255,255,0.07)"),
+                yaxis=dict(gridcolor="rgba(255,255,255,0.07)"),
+            )
+            st.plotly_chart(fig, alt="Cost savings by lever")
         with b:
             st.markdown("#### How the design saves money")
             st.markdown(
@@ -597,11 +1298,12 @@ def main():
         st.dataframe(
             (yrs.set_index("Year")[scols + ["Total cost savings"]] / 1e6).round(2)
             .rename(columns=lambda s: s.replace("Savings: ", "")),
-            use_container_width=True)
+            width="stretch")
         st.caption("$M per year. Every lever is editable under 'Cost-savings levers'.")
 
     # ---------------- Profitability ----------------
     with tabs[3]:
+        _year_banner(df, st.session_state.get("selected_year_t"))
         a, b = st.columns(2)
         with a:
             wf = go.Figure(go.Waterfall(
@@ -619,8 +1321,16 @@ def main():
                    -yrs["Fixed costs"].sum() / 1e6, -p.build_cost / 1e6, sav5 / 1e6, 0],
                 increasing=dict(marker_color=GREEN), decreasing=dict(marker_color="#C0392B"),
                 totals=dict(marker_color=BRAND)))
-            wf.update_layout(title="Five-year bridge: revenue to total value ($M)", height=450)
-            st.plotly_chart(wf, use_container_width=True)
+            wf.update_layout(
+                title="<b>Five-year bridge: revenue → total value ($M)</b>",
+                title_font=dict(size=21, color="#FFD520"),
+                height=450,
+                paper_bgcolor="#04152D", plot_bgcolor="#0a2444",
+                font=dict(color="#d0e4ff", size=16),
+                xaxis=dict(gridcolor="rgba(255,255,255,0.07)"),
+                yaxis=dict(gridcolor="rgba(255,255,255,0.07)"),
+            )
+            st.plotly_chart(wf, alt="Waterfall bridge chart")
         with b:
             per_owner = tot5 / yrs["Enrolled owners"].mean() if yrs["Enrolled owners"].mean() else 0
             st.markdown("#### Profitability, not just revenue")
@@ -639,6 +1349,7 @@ def main():
 
     # ---------------- Customer experience ----------------
     with tabs[4]:
+        _year_banner(df, st.session_state.get("selected_year_t"))
         clv0, clv1 = clv(p, False), clv(p, True)
         r0, r1 = p.base_repeat, p.base_repeat + p.lift
         k = st.columns(4)
@@ -652,26 +1363,45 @@ def main():
         with a:
             fig = go.Figure()
             fig.add_bar(x=["Without MyGarage", "With MyGarage"], y=[clv0, clv1],
-                        marker_color=[GREY, BRAND], text=[f"${clv0:,.0f}", f"${clv1:,.0f}"],
-                        textposition="outside")
-            fig.update_layout(title="Lifetime gross profit per CarMax buyer", height=380,
-                              yaxis_title="$ per customer")
-            st.plotly_chart(fig, use_container_width=True)
+                        marker_color=[GREY, GREEN], text=[f"${clv0:,.0f}", f"${clv1:,.0f}"],
+                        textposition="outside", textfont=dict(size=17, color="#FFD520"))
+            fig.update_layout(
+                title="<b>Lifetime gross profit per CarMax buyer</b>",
+                title_font=dict(size=21, color="#FFD520"),
+                height=380, yaxis_title="$ per customer",
+                paper_bgcolor="#04152D", plot_bgcolor="#0a2444",
+                font=dict(color="#d0e4ff", size=16),
+                yaxis=dict(gridcolor="rgba(255,255,255,0.07)"),
+            )
+            st.plotly_chart(fig, alt="Customer lifetime value comparison")
         with b:
             fig = go.Figure()
             fig.add_bar(x=yrs["Year"], y=yrs["Service visits"], name="Service visits captured",
-                        marker_color=BRAND)
-            fig.add_bar(x=yrs["Year"], y=yrs["Enrolled owners"] * p.contacts * p.contact_reduction,
-                        name="Care calls avoided", marker_color=ACCENT)
-            fig.update_layout(title="Touchpoints that keep owners connected", height=380,
-                              barmode="group", legend=dict(orientation="h", y=-0.15))
-            st.plotly_chart(fig, use_container_width=True)
+                        marker_color="#2979FF",
+                        text=[f"{v:,.0f}" for v in yrs["Service visits"]],
+                        textposition="outside", textfont=dict(color="#d0e4ff", size=12))
+            care_avoided = yrs["Enrolled owners"] * p.contacts * p.contact_reduction
+            fig.add_bar(x=yrs["Year"], y=care_avoided,
+                        name="Care calls avoided", marker_color=ACCENT,
+                        text=[f"{v:,.0f}" for v in care_avoided],
+                        textposition="outside", textfont=dict(color="#d0e4ff", size=12))
+            fig.update_layout(
+                title="<b>Touchpoints that keep owners connected</b>",
+                title_font=dict(size=21, color="#FFD520"),
+                height=380, barmode="group",
+                legend=dict(orientation="h", y=-0.15, font=dict(size=13)),
+                paper_bgcolor="#04152D", plot_bgcolor="#0a2444",
+                font=dict(color="#d0e4ff", size=16),
+                yaxis=dict(gridcolor="rgba(255,255,255,0.07)"),
+            )
+            st.plotly_chart(fig, alt="Service and care touchpoints")
         st.caption("CLV = gross profit per purchase (car + EPP + service over the ownership "
                    "cycle) plus discounted future repeat purchases, net of rewards. It answers "
                    "the 'extended customer life with us' point from the slide 12 notes.")
 
     # ---------------- Sensitivity ----------------
     with tabs[5]:
+        _year_banner(df, st.session_state.get("selected_year_t"))
         lifts = [0.02, 0.03, 0.04, 0.05, 0.06, 0.08]
         rewards = [250, 350, 500, 750]
         inc = st.toggle("Include cost savings", value=True)
@@ -680,15 +1410,23 @@ def main():
                  for R in rewards] for L in lifts]
         hm = go.Figure(go.Heatmap(
             z=grid, x=[f"${r} reward" for r in rewards], y=[f"+{L*100:.0f} pts" for L in lifts],
-            colorscale=[[0, "#C0392B"], [0.5, "#F7F7F7"], [1, GREEN]], zmid=0,
-            text=[[f"{v:,.1f}" for v in row] for row in grid], texttemplate="%{text}"))
-        hm.update_layout(title=f"Five-year {col.lower()} after build ($M) by lift and reward",
-                         height=430, yaxis_title="Repeat-rate lift")
-        st.plotly_chart(hm, use_container_width=True)
+            colorscale=[[0, "#F3B6BD"], [0.5, "#E7EDF3"], [1, "#A8DDBB"]], zmid=0,
+            text=[[f"{v:,.1f}" for v in row] for row in grid], texttemplate="%{text}",
+            textfont=dict(size=14, color="#d0e4ff")))
+        hm.update_layout(
+            title=f"<b>Five-year {col.lower()} after build ($M)</b>",
+            title_font=dict(size=21, color="#FFD520"),
+            height=430, yaxis_title="Repeat-rate lift",
+            paper_bgcolor="#04152D", plot_bgcolor="#0a2444",
+            font=dict(color="#d0e4ff", size=16),
+        )
+        st.plotly_chart(hm, alt="Sensitivity heatmap")
         st.caption("Compare with deck slide 24 (program profit only).")
 
     # ---------------- Table ----------------
     with tabs[6]:
+        sel_t = st.session_state.get("selected_year_t")
+        _year_banner(df, sel_t)
         show = df.drop(columns=["t"]).set_index("Year")
         money = [c_ for c_ in show.columns if c_ not in
                  ("Enrolled owners", "Incremental repeat cars", "Scans", "Verified trade-ins",
@@ -697,7 +1435,7 @@ def main():
         out[money] = (out[money] / 1e6).round(2)
         out[[c_ for c_ in show.columns if c_ not in money]] = \
             out[[c_ for c_ in show.columns if c_ not in money]].round(0)
-        st.dataframe(out.T, use_container_width=True)
+        st.dataframe(out.T, width="stretch")
         st.caption("Money rows in $M; counts in units.")
         st.download_button("Download table (CSV)", out.to_csv().encode(),
                            "mygarage_model_output.csv", "text/csv")

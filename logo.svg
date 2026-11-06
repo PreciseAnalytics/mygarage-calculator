@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 80" width="280" height="80">
+  <!-- Background -->
+  <rect width="280" height="80" rx="10" fill="#0d3880"/>
+  <!-- Garage icon -->
+  <rect x="10" y="22" width="44" height="28" rx="2" fill="#FFD520"/>
+  <rect x="14" y="27" width="36" height="20" rx="1" fill="#0d3880"/>
+  <line x1="14" y1="34" x2="50" y2="34" stroke="#FFD520" stroke-width="2"/>
+  <line x1="14" y1="40" x2="50" y2="40" stroke="#FFD520" stroke-width="2"/>
+  <polygon points="7,24 32,8 57,24" fill="#FFD520"/>
+  <polygon points="10,24 32,12 54,24" fill="#1a5fa8"/>
+  <rect x="24" y="45" width="16" height="5" rx="2.5" fill="#FFD520"/>
+  <circle cx="26" cy="53" r="2.5" fill="#FFD520"/>
+  <circle cx="38" cy="53" r="2.5" fill="#FFD520"/>
+  <!-- MyGarage text -->
+  <text x="68" y="35" font-family="Arial Black,Arial,sans-serif" font-size="22" font-weight="900" fill="#FFD520" letter-spacing="-0.5">MyGarage</text>
+  <!-- by CarMax text -->
+  <text x="70" y="58" font-family="Arial,sans-serif" font-size="15" font-weight="600" fill="#c8dcf8" letter-spacing="0.5">by CarMax</text>
+</svg>
