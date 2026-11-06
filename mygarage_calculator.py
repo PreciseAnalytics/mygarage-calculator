@@ -634,9 +634,9 @@ def main():
         display: block !important;
         visibility: visible !important;
         left: 0 !important;
-        min-width: 260px !important;
-        max-width: 260px !important;
-        width: 260px !important;
+        min-width: 200px !important;
+        max-width: 200px !important;
+        width: 200px !important;
     }
     /* Hide collapse ‹ and expand › buttons so user can't close it */
     [data-testid="stSidebarCollapseButton"],
@@ -651,7 +651,6 @@ def main():
         st.markdown("## MyGarage inputs")
         st.markdown(f"Scenario: **{st.session_state['preset']}**. Pick scenarios with the "
                     "buttons on the main page; fine-tune any input below.")
-        st.caption("💡 Press **`[`** or click the **›** tab at the screen edge to show/hide this panel.")
 
         with st.expander("CarMax baseline (FY2026)", expanded=False):
             num("Retail used units / year", "retail_units", 1000.0)
@@ -816,12 +815,12 @@ def main():
     .mg-hero-logo svg { transition: opacity 0.15s; }
     .mg-hero-logo a:hover svg { opacity: 0.8; }
     .mg-hero-text h1 {
-        font-size: 1.9rem; font-weight: 900; color: #FFD520;
+        font-size: 2.1rem; font-weight: 900; color: #FFD520;
         margin: 0 0 2px 0; letter-spacing: -0.5px;
     }
-    .mg-hero-text .sub { font-size: 0.95rem; color: #e0eeff; font-weight: 500; }
+    .mg-hero-text .sub { font-size: 1rem; color: #e0eeff; font-weight: 500; }
     .mg-hero-text .team-line {
-        font-size: 0.88rem; color: #ffffff; margin-top: 4px; font-weight: 700;
+        font-size: 0.9rem; color: #ffffff; margin-top: 4px; font-weight: 700;
     }
     .mg-hero-scenario { text-align: right; flex-shrink: 0; }
     .mg-hero-scenario .sc-label {
@@ -847,11 +846,11 @@ def main():
     }
     [data-testid="stButton"] button {
         font-family: "Inter", "Poppins", sans-serif !important;
-        font-size: 1.1rem !important;
+        font-size: 1.15rem !important;
         font-weight: 600 !important;
-        padding: 8px 6px !important;
+        padding: 9px 6px !important;
         border-radius: 6px !important;
-        min-height: 40px !important;
+        min-height: 42px !important;
         border: none !important;
         box-shadow: none !important;
         letter-spacing: 0 !important;
@@ -859,7 +858,7 @@ def main():
     [data-testid="stButton"] button p,
     [data-testid="stButton"] button div {
         font-family: "Inter", "Poppins", sans-serif !important;
-        font-size: 1.1rem !important;
+        font-size: 1.15rem !important;
         font-weight: 600 !important;
         line-height: 1.2 !important;
         letter-spacing: 0 !important;
@@ -887,9 +886,9 @@ def main():
         padding: 0 20px; border-right: 1px solid rgba(255,213,32,0.2);
     }
     .inputs-bar .ib-item:last-child { border-right: none; }
-    .inputs-bar .ib-val  { font-size: 1.35rem; font-weight: 900; color: #FFD520; line-height: 1.1; }
+    .inputs-bar .ib-val  { font-size: 1.5rem; font-weight: 900; color: #FFD520; line-height: 1.1; }
     .inputs-bar .ib-lbl  {
-        font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px;
+        font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px;
         color: #90b4e0; font-weight: 700; margin-top: 2px;
     }
 
@@ -922,7 +921,7 @@ def main():
         margin-bottom: 6px;
     }
     .kpi-value {
-        font-size: 2rem;
+        font-size: 2.2rem;
         font-weight: 900;
         line-height: 1;
         margin-bottom: 4px;
@@ -956,7 +955,7 @@ def main():
         padding: 0 16px; border-right: 1px solid rgba(100,140,200,0.25);
     }
     .callout-strip .co-item:last-child { border-right: none; }
-    .callout-strip .co-num  { font-size: 1.4rem; font-weight: 900; color: #FFD520; line-height: 1.1; }
+    .callout-strip .co-num  { font-size: 1.6rem; font-weight: 900; color: #FFD520; line-height: 1.1; }
     .callout-strip .co-txt  { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.8px; color: #90b4e0; font-weight: 700; margin-top: 2px; text-align: center; }
 
     /* ═══════════════════════════════════════════════════
@@ -1026,20 +1025,20 @@ def main():
         border-radius: 0 !important;
     }
 
-    [data-testid="stSidebar"] { font-size: 0.9rem !important; }
+    [data-testid="stSidebar"] { font-size: 0.82rem !important; }
     [data-testid="stSidebar"] p,
     [data-testid="stSidebar"] span,
     [data-testid="stSidebar"] label {
-        font-size: 0.9rem !important;
-        font-weight: 600 !important;
-        line-height: 1.5 !important;
+        font-size: 0.82rem !important;
+        font-weight: 500 !important;
+        line-height: 1.4 !important;
     }
-    [data-testid="stSidebar"] input { font-size: 0.9rem !important; font-weight: 700 !important; }
+    [data-testid="stSidebar"] input { font-size: 0.85rem !important; font-weight: 600 !important; }
     [data-testid="stSidebar"] summary p,
     [data-testid="stSidebar"] summary span {
-        font-size: 0.95rem !important; font-weight: 800 !important;
+        font-size: 0.88rem !important; font-weight: 700 !important;
     }
-    [data-testid="stSidebar"] h2 { font-size: 1.3rem !important; font-weight: 900 !important; }
+    [data-testid="stSidebar"] h2 { font-size: 1.05rem !important; font-weight: 900 !important; }
     /* More breathing room between sidebar widgets */
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 1rem !important; }
     [data-testid="stSidebar"] [data-testid="stNumberInput"] { margin-bottom: 0.5rem !important; }
@@ -1137,7 +1136,7 @@ def main():
                         padding:16px 8px 4px 8px;border-left:1px solid rgba(255,213,32,0.15);'>
               <div style='font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;
                           font-weight:700;color:#90b4e0;margin-bottom:6px;'>{label}</div>
-              <div style='font-size:1.9rem;font-weight:900;line-height:1;color:{val_color};
+              <div style='font-size:2.1rem;font-weight:900;line-height:1;color:{val_color};
                           font-family:"Inter","Poppins",sans-serif;'>{value}</div>
               <div style='font-size:0.82rem;color:#7090b8;font-weight:600;
                           margin-top:6px;padding-bottom:8px;'>{delta}</div>
