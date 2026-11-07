@@ -622,7 +622,7 @@ def main():
             st.session_state[f"_m_{k}"] = v / 1e6
 
     # Logo in sidebar — clicking navigates home
-    st.logo("logo.svg", link="http://localhost:8501", size="large")
+    st.logo("logo.svg", size="large")
 
     # Force sidebar always open on desktop, hide on mobile
     st.markdown("""
@@ -1115,7 +1115,7 @@ def main():
     <div class='mg-hero'>
         <div class='mg-hero-left'>
             <div class='mg-hero-logo'>
-                <a href="http://localhost:8501" title="Back to home">
+                <a href="/" title="Back to home">
                 <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <rect x="6" y="28" width="60" height="38" rx="3" fill="#FFD520"/>
                   <rect x="10" y="32" width="52" height="30" rx="2" fill="#0d3880"/>
