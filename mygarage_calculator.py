@@ -845,6 +845,13 @@ def main():
 
     /* ── Remove top dead space ── */
     header[data-testid="stHeader"] { display: none !important; }
+    /* ── Hide Streamlit Cloud chrome ── */
+    [data-testid="stToolbar"],
+    [data-testid="stDecoration"],
+    [data-testid="stStatusWidget"],
+    footer,
+    footer > *,
+    #stDecoration { display: none !important; visibility: hidden !important; }
     .stMainBlockContainer { padding-top: 0 !important; padding-left: 1.5rem !important; padding-right: 1.5rem !important; }
     /* Tight vertical rhythm — everything flows as one page */
     .stVerticalBlock { gap: 0.35rem !important; }
