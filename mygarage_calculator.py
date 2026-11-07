@@ -622,7 +622,7 @@ def main():
             st.session_state[f"_m_{k}"] = v / 1e6
 
     # Logo in sidebar — clicking navigates home
-    st.logo("logo.svg", size="large")
+    st.logo("logo.svg", link="/", size="large")
 
     # Force sidebar always open on desktop, hide on mobile
     st.markdown("""
