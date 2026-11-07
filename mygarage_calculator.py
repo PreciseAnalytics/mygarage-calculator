@@ -624,24 +624,91 @@ def main():
     # Logo in sidebar — clicking navigates home
     st.logo("logo.svg", link="http://localhost:8501", size="large")
 
-    # Force sidebar always open and hide both toggle buttons
+    # Force sidebar always open on desktop, hide on mobile
     st.markdown("""
     <style>
     #MainMenu { visibility: hidden; }
-    /* Always show the sidebar — override any collapsed browser state */
-    [data-testid="stSidebar"] {
-        transform: none !important;
-        display: block !important;
-        visibility: visible !important;
-        left: 0 !important;
-        min-width: 200px !important;
-        max-width: 200px !important;
-        width: 200px !important;
+
+    /* ── DESKTOP: always show sidebar, hide toggle buttons ── */
+    @media (min-width: 769px) {
+        [data-testid="stSidebar"] {
+            transform: none !important;
+            display: block !important;
+            visibility: visible !important;
+            left: 0 !important;
+            min-width: 200px !important;
+            max-width: 200px !important;
+            width: 200px !important;
+        }
+        [data-testid="stSidebarCollapseButton"],
+        div[data-testid="stSidebarCollapsedControl"] {
+            display: none !important;
+        }
     }
-    /* Hide collapse ‹ and expand › buttons so user can't close it */
-    [data-testid="stSidebarCollapseButton"],
-    div[data-testid="stSidebarCollapsedControl"] {
-        display: none !important;
+
+    /* ── MOBILE: hide sidebar, show expand button ── */
+    @media (max-width: 768px) {
+        [data-testid="stSidebar"] {
+            display: none !important;
+        }
+        div[data-testid="stSidebarCollapsedControl"] {
+            display: flex !important;
+            position: fixed !important;
+            top: 12px !important;
+            left: 12px !important;
+            z-index: 9999 !important;
+        }
+        div[data-testid="stSidebarCollapsedControl"] button {
+            background: #1565C0 !important;
+            border: 2px solid #FFD520 !important;
+            border-radius: 8px !important;
+            color: #FFD520 !important;
+        }
+        /* Main content takes full width on mobile */
+        .stMainBlockContainer {
+            padding-left: 0.75rem !important;
+            padding-right: 0.75rem !important;
+        }
+        /* Stack the 4-column controls vertically */
+        [data-testid="stHorizontalBlock"]:has(.st-key-wrap_scenario) {
+            flex-direction: column !important;
+            margin: 0 -0.75rem !important;
+        }
+        [data-testid="stHorizontalBlock"]:has(.st-key-wrap_scenario) > div {
+            width: 100% !important;
+            flex: none !important;
+        }
+        /* Hero: shrink and stack */
+        .mg-hero {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            padding: 10px 12px !important;
+            margin: 0 -0.75rem !important;
+        }
+        .mg-hero-text h1 { font-size: 1.4rem !important; }
+        .mg-hero-text .sub { font-size: 0.82rem !important; }
+        .mg-hero-text .team-line { font-size: 0.72rem !important; }
+        .mg-hero-scenario { text-align: left !important; margin-top: 6px !important; }
+        .mg-hero-scenario .sc-badge { font-size: 1rem !important; padding: 5px 14px !important; }
+        /* Inputs bar and callout: allow wrapping on mobile */
+        .inputs-bar, .callout-strip {
+            flex-wrap: wrap !important;
+            margin: 0 -0.75rem !important;
+            gap: 4px !important;
+            padding: 8px 6px !important;
+        }
+        .inputs-bar .ib-item, .callout-strip .co-item {
+            padding: 4px 10px !important;
+            width: 30% !important;
+            border-right: none !important;
+            border-bottom: 1px solid rgba(255,213,32,0.15) !important;
+        }
+        .inputs-bar .ib-val { font-size: 1.1rem !important; }
+        .callout-strip .co-num { font-size: 1.1rem !important; }
+        /* KPI row: wrap tiles */
+        .kpi-row { flex-wrap: wrap !important; margin: 0 -0.75rem !important; }
+        .kpi-item { width: 50% !important; flex: none !important; }
+        .kpi-value { font-size: 1.5rem !important; }
     }
     </style>
     """, unsafe_allow_html=True)
